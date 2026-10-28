@@ -155,6 +155,15 @@ def test_word_pdf_presets(store, tmp_path):
     assert pdf_item.target == "DOCX"
 
 
+def test_ogg_to_mp3_preset(store, tmp_path):
+    ogg = tmp_path / "track.ogg"
+    ogg.write_bytes(b"x")
+    q = ConversionQueue(store)
+    [item] = q.add_paths([ogg])
+    assert q.apply_preset(next(p for p in BUILTIN_PRESETS if p.id == "p8")) == 1
+    assert (item.target, item.target_cat, item.opts.bitrate) == ("MP3", "audio", "192 kbps")
+
+
 def test_duplicate_pending_paths_are_ignored(store, images):
     q = ConversionQueue(store)
     q.add_paths(images)
