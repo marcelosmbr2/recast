@@ -11,4 +11,8 @@ BUILTIN_PRESETS: list[Preset] = [
            "H.264 · 1080p · Equilibrado", {"codec": "H.264", "res": "1080p"}, builtin=True),
     Preset("p5", "Digitalizações para PDF", ["tiff", "tif"], "PDF", "document", 80,
            "Imagens comprimidas", {"compress": True}, builtin=True),
+    Preset("p6", "Word para PDF", ["docx"], "PDF", "document", 80,
+           "Documento portátil · Imagens comprimidas", {"compress": True}, builtin=True),
+    Preset("p7", "PDF para Word", ["pdf"], "DOCX", "document", 80,
+           "Somente o texto · Microsoft Word", builtin=True),
 ]

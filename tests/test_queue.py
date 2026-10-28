@@ -141,6 +141,20 @@ def test_targets_presets_and_apply_all(store, images, tmp_path):
     assert all(i.target == "JPG" and i.opts.quality == 55 for i in q.items)
 
 
+def test_word_pdf_presets(store, tmp_path):
+    docx, pdf = tmp_path / "report.docx", tmp_path / "scan.pdf"
+    for p in (docx, pdf):
+        p.write_bytes(b"x")
+    q = ConversionQueue(store)
+    word, pdf_item = q.add_paths([docx, pdf])
+    presets = {p.id: p for p in BUILTIN_PRESETS}
+    assert q.apply_preset(presets["p6"]) == 1
+    assert (word.target, pdf_item.target) == ("PDF", "DOCX")
+    pdf_item.target = "TXT"
+    assert q.apply_preset(presets["p7"]) == 1
+    assert pdf_item.target == "DOCX"
+
+
 def test_duplicate_pending_paths_are_ignored(store, images):
     q = ConversionQueue(store)
     q.add_paths(images)
