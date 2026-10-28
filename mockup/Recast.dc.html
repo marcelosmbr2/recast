@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;background:#0b0b0c;color:#ededee;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;color-scheme:dark}
+*{box-sizing:border-box}
+a{color:#f59a62;text-decoration:none}a:hover{color:#f8b083}
+button,input{font-family:inherit}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#2a2a2d;border-radius:8px;border:3px solid transparent;background-clip:padding-box}::-webkit-scrollbar-track{background:transparent}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;padding:40px;background:#0b0b0c;overflow:auto">
+<div ref="{{ winRef }}" data-screen-label="Recast window" style="position:relative;margin:auto;width:1320px;height:820px;flex:none;display:flex;flex-direction:column;background:#151516;border:1px solid #2a2a2d;border-radius:12px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.6)">
+
+  <div style="height:40px;flex:none;display:flex;align-items:center;padding:0 14px;border-bottom:1px solid #222224;background:#121213;position:relative">
+    <div style="display:flex;gap:8px">
+      <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57"></span>
+      <span style="width:12px;height:12px;border-radius:50%;background:#febc2e"></span>
+      <span style="width:12px;height:12px;border-radius:50%;background:#28c840"></span>
+    </div>
+    <div style="position:absolute;left:50%;transform:translateX(-50%);font-size:12.5px;font-weight:600;color:#a0a0a8;letter-spacing:.01em">Recast</div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:6px;height:22px;padding:0 9px 0 7px;border-radius:11px;border:1px solid #26262a;color:#a0a0a8;font-size:11.5px;font-weight:500">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5bbf8a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"></path><path d="M9 12l2 2 4-4"></path></svg>
+      Offline
+    </div>
+  </div>
+
+  <div style="flex:1;min-height:0;display:flex">
+
+    <aside style="width:220px;flex:none;display:flex;flex-direction:column;background:#111112;border-right:1px solid #222224;padding:12px 8px">
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <button onClick="{{ goConvert }}" style="display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border:0;border-radius:6px;background:{{ nav.convert.bg }};color:{{ nav.convert.color }};font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="color:#ededee">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h14l-3.5-3.5"></path><path d="M20 16H6l3.5 3.5"></path></svg>
+          <span style="flex:1">Converter</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c7c85">{{ pendingCount }}</span>
+        </button>
+        <button onClick="{{ goHistory }}" style="display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border:0;border-radius:6px;background:{{ nav.history.bg }};color:{{ nav.history.color }};font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="color:#ededee">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg>
+          Histórico
+        </button>
+        <button onClick="{{ goPresets }}" style="display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border:0;border-radius:6px;background:{{ nav.presets.bg }};color:{{ nav.presets.color }};font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="color:#ededee">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><circle cx="15" cy="6" r="2"></circle><circle cx="9" cy="12" r="2"></circle><circle cx="17" cy="18" r="2"></circle></svg>
+          Predefinições
+        </button>
+      </div>
+
+      <div style="margin-top:22px;padding:0 10px 6px;font-size:11px;font-weight:500;color:#7c7c85">Predefinições rápidas</div>
+      <div style="display:flex;flex-direction:column;gap:1px">
+        <sc-for list="{{ quickPresets }}" as="qp" hint-placeholder-count="4">
+          <button onClick="{{ qp.onClick }}" title="{{ qp.name }}" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 10px;border:0;border-radius:6px;background:transparent;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11.5px" style-hover="background:#18181a">
+            <span style="color:#8a8a93;min-width:34px;text-align:left">{{ qp.from }}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#55555c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+            <span style="color:#d6d6da">{{ qp.to }}</span>
+          </button>
+        </sc-for>
+      </div>
+
+      <div style="margin-top:auto;display:flex;flex-direction:column;gap:10px">
+        <button onClick="{{ goSettings }}" style="display:flex;align-items:center;gap:10px;height:32px;padding:0 10px;border:0;border-radius:6px;background:{{ nav.settings.bg }};color:{{ nav.settings.color }};font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="color:#ededee">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"></path></svg>
+          Ajustes
+        </button>
+        <div style="margin:0 4px;padding:10px 12px;border:1px solid #222224;border-radius:8px;background:#141415">
+          <div style="display:flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#ededee">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5bbf8a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+            Processado neste Mac
+          </div>
+          <div style="margin-top:4px;font-size:11.5px;line-height:1.45;color:#8a8a93;text-wrap:pretty">O Recast não tem acesso à rede. Seus arquivos nunca são enviados.</div>
+        </div>
+      </div>
+    </aside>
+
+    <main onDragOver="{{ onDragOver }}" onDragLeave="{{ onDragLeave }}" onDrop="{{ onDrop }}" style="flex:1;min-width:0;display:flex;flex-direction:column;position:relative">
+      <input type="file" multiple ref="{{ fileRef }}" onChange="{{ onFiles }}" style="display:none">
+
+      <sc-if value="{{ isConvert }}" hint-placeholder-val="{{ true }}">
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <div style="height:56px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px 0 20px;border-bottom:1px solid #222224">
+            <div style="display:flex;flex-direction:column;gap:2px;margin-right:auto;min-width:0;flex:1">
+              <div style="font-size:14px;font-weight:600;color:#ededee">Converter</div>
+              <div style="font-size:11.5px;color:#7c7c85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ summary }}</div>
+            </div>
+            <sc-if value="{{ hasDone }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ clearDone }}" style="flex:none;white-space:nowrap;height:30px;padding:0 10px;border:0;border-radius:6px;background:transparent;color:#a0a0a8;font-size:12.5px;font-weight:500;cursor:pointer" style-hover="color:#ededee;background:#1c1c1e">Limpar</button>
+            </sc-if>
+            <sc-if value="{{ hasPickable }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ openAllPicker }}" style="flex:none;white-space:nowrap;display:flex;align-items:center;gap:6px;height:30px;padding:0 9px 0 11px;border:1px solid #2a2a2d;border-radius:6px;background:#1c1c1e;color:#a0a0a8;font-size:12.5px;font-weight:500;cursor:pointer" style-hover="background:#232326">
+                Tudo para <span style="color:#ededee;font-weight:600">{{ allTarget }}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+              </button>
+            </sc-if>
+            <button onClick="{{ browse }}" style="flex:none;white-space:nowrap;display:flex;align-items:center;gap:6px;height:30px;padding:0 11px 0 9px;border:1px solid #2a2a2d;border-radius:6px;background:#1c1c1e;color:#d6d6da;font-size:12.5px;font-weight:500;cursor:pointer" style-hover="background:#232326">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+              Adicionar arquivos
+            </button>
+            <sc-if value="{{ hasFiles }}" hint-placeholder-val="{{ true }}">
+              <button onClick="{{ onPrimary }}" style="flex:none;white-space:nowrap;display:flex;align-items:center;gap:7px;height:30px;padding:0 13px 0 11px;border:0;border-radius:6px;background:#ee7a3a;color:#1a0d05;font-size:12.5px;font-weight:600;cursor:pointer;opacity:{{ primary.opacity }}" style-hover="background:#f38a4d">
+                <sc-if value="{{ primary.isPause }}" hint-placeholder-val="{{ false }}">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"></rect><rect x="14" y="5" width="4" height="14" rx="1"></rect></svg>
+                </sc-if>
+                <sc-if value="{{ primary.isPlay }}" hint-placeholder-val="{{ true }}">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12.5-7.5z"></path></svg>
+                </sc-if>
+                {{ primary.label }}
+              </button>
+            </sc-if>
+          </div>
+
+          <sc-if value="{{ hasFiles }}" hint-placeholder-val="{{ true }}">
+            <div style="height:32px;flex:none;display:grid;grid-template-columns:minmax(0,1fr) 150px 188px 60px;align-items:center;gap:16px;padding:0 16px 0 20px;border-bottom:1px solid #1e1e20;font-size:11px;font-weight:500;color:#7c7c85">
+              <div>Nome</div><div>Converter para</div><div>Status</div><div></div>
+            </div>
+            <div style="flex:1;min-height:0;overflow:auto">
+              <sc-for list="{{ rows }}" as="f" hint-placeholder-count="6">
+                <div onClick="{{ f.onSelect }}" style="height:54px;display:grid;grid-template-columns:minmax(0,1fr) 150px 188px 60px;align-items:center;gap:16px;padding:0 16px 0 20px;border-bottom:1px solid #1c1c1e;background:{{ f.rowBg }};cursor:default">
+                  <div style="display:flex;align-items:center;gap:12px;min-width:0">
+                    <div style="width:26px;height:32px;flex:none;border-radius:4px;background:{{ f.iconBg }};border:1px solid {{ f.iconBorder }};display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px">
+                      <span style="font-size:7.5px;font-weight:700;letter-spacing:.02em;color:{{ f.tint }}">{{ f.srcExt }}</span>
+                    </div>
+                    <div style="min-width:0;display:flex;flex-direction:column;gap:2px">
+                      <div style="font-size:13px;font-weight:500;color:#ededee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.name }}</div>
+                      <div style="font-size:11.5px;color:#7c7c85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.meta }}</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;align-items:center">
+                    <sc-if value="{{ f.canPick }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ f.onPick }}" style="display:flex;align-items:center;gap:6px;height:26px;padding:0 7px 0 10px;border-radius:6px;border:1px solid #2a2a2e;background:#1c1c1e;color:#ededee;font-size:12px;font-weight:600;cursor:pointer" style-hover="background:#232326;border-color:#38383d">
+                        {{ f.targetExt }}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8a8a93" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+                      </button>
+                    </sc-if>
+                    <sc-if value="{{ f.noPick }}" hint-placeholder-val="{{ false }}">
+                      <span style="padding:0 11px;font-size:12px;font-weight:600;color:#a0a0a8">{{ f.targetExt }}</span>
+                    </sc-if>
+                  </div>
+                  <div style="min-width:0">
+                    <sc-if value="{{ f.isReady }}" hint-placeholder-val="{{ true }}">
+                      <span style="font-size:12px;color:#a0a0a8">Pronto</span>
+                    </sc-if>
+                    <sc-if value="{{ f.isQueued }}" hint-placeholder-val="{{ false }}">
+                      <span style="font-size:12px;color:#7c7c85">Na fila</span>
+                    </sc-if>
+                    <sc-if value="{{ f.isActive }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;flex-direction:column;gap:6px">
+                        <div style="display:flex;justify-content:space-between;font-size:11.5px">
+                          <span style="color:#d6d6da;white-space:nowrap">{{ f.activeLabel }}</span>
+                          <span style="font-family:'JetBrains Mono',monospace;color:#8a8a93;white-space:nowrap">{{ f.pct }}</span>
+                        </div>
+                        <div style="height:3px;border-radius:2px;background:#26262a;overflow:hidden">
+                          <div style="height:100%;width:{{ f.pct }};background:{{ f.barColor }};border-radius:2px;transition:width .12s linear"></div>
+                        </div>
+                      </div>
+                    </sc-if>
+                    <sc-if value="{{ f.isDone }}" hint-placeholder-val="{{ false }}">
+                      <div style="display:flex;align-items:center;gap:7px;font-size:12px">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#5bbf8a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+                        <span style="color:#d6d6da">{{ f.outLabel }}</span>
+                        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c7c85">{{ f.deltaLabel }}</span>
+                      </div>
+                    </sc-if>
+                  </div>
+                  <div style="display:flex;justify-content:flex-end;gap:2px">
+                    <sc-if value="{{ f.isDone }}" hint-placeholder-val="{{ false }}">
+                      <button onClick="{{ f.onReveal }}" title="Mostrar no Finder" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:0;border-radius:6px;background:transparent;color:#7c7c85;cursor:pointer" style-hover="background:#232326;color:#ededee">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"></path></svg>
+                      </button>
+                    </sc-if>
+                    <button onClick="{{ f.onRemove }}" title="Remover" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:0;border-radius:6px;background:transparent;color:#6b6b73;cursor:pointer" style-hover="background:#232326;color:#ededee">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M7 7l10 10M17 7L7 17"></path></svg>
+                    </button>
+                  </div>
+                </div>
+              </sc-for>
+              <button onClick="{{ browse }}" style="margin:12px 20px;width:calc(100% - 40px);height:44px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px dashed #2c2c30;border-radius:8px;background:transparent;color:#8a8a93;font-size:12.5px;cursor:pointer" style-hover="border-color:#3d3d42;color:#ededee">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+                Adicione mais arquivos ou solte-os em qualquer lugar
+              </button>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ noFiles }}" hint-placeholder-val="{{ false }}">
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:32px">
+              <div style="width:100%;max-width:560px;padding:48px 40px;display:flex;flex-direction:column;align-items:center;text-align:center;border:1px dashed #2e2e33;border-radius:12px">
+                <div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:#1c1c1e;border:1px solid #2a2a2e;color:#ee7a3a">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5"></path><path d="M4 15v3.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V15"></path></svg>
+                </div>
+                <div style="margin-top:18px;font-size:16px;font-weight:600;color:#ededee">Solte arquivos para converter</div>
+                <div style="margin-top:6px;max-width:380px;font-size:12.5px;line-height:1.55;color:#8a8a93;text-wrap:pretty">Imagens, documentos, áudio, vídeo, arquivos compactados e e-books. Tudo é processado neste dispositivo.</div>
+                <div style="margin-top:20px;display:flex;align-items:center;gap:10px">
+                  <button onClick="{{ browse }}" style="height:32px;padding:0 14px;border:0;border-radius:6px;background:#ee7a3a;color:#1a0d05;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="background:#f38a4d">Escolher arquivos…</button>
+                  <span style="display:flex;gap:3px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#7c7c85">
+                    <span style="padding:2px 6px;border:1px solid #2a2a2e;border-radius:4px;background:#1a1a1c">⌘</span>
+                    <span style="padding:2px 6px;border:1px solid #2a2a2e;border-radius:4px;background:#1a1a1c">O</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isHistory }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <div style="height:56px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px 0 20px;border-bottom:1px solid #222224">
+            <div style="display:flex;flex-direction:column;gap:2px;margin-right:auto">
+              <div style="font-size:14px;font-weight:600;color:#ededee">Histórico</div>
+              <div style="font-size:11.5px;color:#7c7c85">Armazenado localmente. O Recast não guarda cópias dos seus arquivos.</div>
+            </div>
+            <button onClick="{{ clearHistory }}" style="height:30px;padding:0 11px;border:1px solid #2a2a2d;border-radius:6px;background:#1c1c1e;color:#d6d6da;font-size:12.5px;font-weight:500;cursor:pointer" style-hover="background:#232326">Limpar histórico</button>
+          </div>
+          <div style="height:32px;flex:none;display:grid;grid-template-columns:minmax(0,1fr) 150px 190px 130px 40px;align-items:center;gap:16px;padding:0 16px 0 20px;border-bottom:1px solid #1e1e20;font-size:11px;font-weight:500;color:#7c7c85">
+            <div>Nome</div><div>Conversão</div><div>Tamanho</div><div>Data</div><div></div>
+          </div>
+          <div style="flex:1;min-height:0;overflow:auto">
+            <sc-for list="{{ historyRows }}" as="h" hint-placeholder-count="6">
+              <div style="height:48px;display:grid;grid-template-columns:minmax(0,1fr) 150px 190px 130px 40px;align-items:center;gap:16px;padding:0 16px 0 20px;border-bottom:1px solid #1c1c1e" style-hover="background:#18181a">
+                <div style="display:flex;align-items:center;gap:12px;min-width:0">
+                  <div style="width:22px;height:28px;flex:none;border-radius:4px;background:{{ h.iconBg }};border:1px solid {{ h.iconBorder }}"></div>
+                  <div style="font-size:13px;color:#ededee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ h.name }}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:11.5px">
+                  <span style="color:#8a8a93">{{ h.from }}</span>
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#55555c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+                  <span style="color:#d6d6da">{{ h.to }}</span>
+                </div>
+                <div style="font-size:12px;color:#a0a0a8">{{ h.sizes }}</div>
+                <div style="font-size:12px;color:#7c7c85">{{ h.when }}</div>
+                <button onClick="{{ h.onReveal }}" title="Mostrar no Finder" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;border:0;border-radius:6px;background:transparent;color:#7c7c85;cursor:pointer" style-hover="background:#232326;color:#ededee">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"></path></svg>
+                </button>
+              </div>
+            </sc-for>
+            <sc-if value="{{ historyEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:48px 20px;text-align:center;font-size:12.5px;color:#7c7c85">Nenhuma conversão ainda.</div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isPresets }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <div style="height:56px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px 0 20px;border-bottom:1px solid #222224">
+            <div style="display:flex;flex-direction:column;gap:2px;margin-right:auto">
+              <div style="font-size:14px;font-weight:600;color:#ededee">Predefinições</div>
+              <div style="font-size:11.5px;color:#7c7c85">Regras salvas de formato e qualidade. Aplique uma a todos os arquivos correspondentes na fila.</div>
+            </div>
+            <button style="display:flex;align-items:center;gap:6px;height:30px;padding:0 11px 0 9px;border:1px solid #2a2a2d;border-radius:6px;background:#1c1c1e;color:#d6d6da;font-size:12.5px;font-weight:500;cursor:pointer" style-hover="background:#232326">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+              Nova predefinição
+            </button>
+          </div>
+          <div style="flex:1;min-height:0;overflow:auto">
+            <sc-for list="{{ presetRows }}" as="p" hint-placeholder-count="5">
+              <div style="min-height:60px;display:grid;grid-template-columns:minmax(0,1fr) 230px 80px;align-items:center;gap:16px;padding:10px 16px 10px 20px;border-bottom:1px solid #1c1c1e" style-hover="background:#18181a">
+                <div style="display:flex;flex-direction:column;gap:3px;min-width:0">
+                  <div style="font-size:13px;font-weight:500;color:#ededee">{{ p.name }}</div>
+                  <div style="font-size:11.5px;color:#7c7c85">{{ p.detail }}</div>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#a0a0a8">{{ p.rule }}</div>
+                <button onClick="{{ p.onApply }}" style="justify-self:end;height:28px;padding:0 12px;border:1px solid #2a2a2d;border-radius:6px;background:#1c1c1e;color:#d6d6da;font-size:12px;font-weight:500;cursor:pointer" style-hover="background:#232326">Aplicar</button>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <div style="height:56px;flex:none;display:flex;align-items:center;padding:0 16px 0 20px;border-bottom:1px solid #222224">
+            <div style="font-size:14px;font-weight:600;color:#ededee">Ajustes</div>
+          </div>
+          <div style="flex:1;min-height:0;overflow:auto;padding:8px 20px 24px">
+            <div style="max-width:700px;display:flex;flex-direction:column">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:1px solid #1e1e20">
+                <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:13px;font-weight:500;color:#ededee">Pasta de saída</div><div style="font-size:12px;color:#8a8a93">Os arquivos convertidos são salvos aqui.</div></div>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#a0a0a8">{{ settings.folder }}</span>
+                  <button style="height:28px;padding:0 11px;border:1px solid #2a2a2d;border-radius:6px;background:#1c1c1e;color:#d6d6da;font-size:12px;font-weight:500;cursor:pointer" style-hover="background:#232326">Alterar…</button>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:1px solid #1e1e20">
+                <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:13px;font-weight:500;color:#ededee">Se o arquivo já existir</div><div style="font-size:12px;color:#8a8a93">Vale quando o nome de saída já está em uso.</div></div>
+                <div style="display:flex;padding:2px;gap:2px;background:#0f0f10;border:1px solid #232326;border-radius:7px">
+                  <sc-for list="{{ conflictOpts }}" as="o" hint-placeholder-count="3">
+                    <button onClick="{{ o.onClick }}" style="min-width:68px;height:24px;padding:0 10px;border:0;border-radius:5px;background:{{ o.bg }};color:{{ o.color }};font-size:12px;font-weight:500;cursor:pointer">{{ o.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:1px solid #1e1e20">
+                <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:13px;font-weight:500;color:#ededee">Conversões simultâneas</div><div style="font-size:12px;color:#8a8a93">Valores maiores são mais rápidos, mas usam mais memória.</div></div>
+                <div style="display:flex;padding:2px;gap:2px;background:#0f0f10;border:1px solid #232326;border-radius:7px">
+                  <sc-for list="{{ parallelOpts }}" as="o" hint-placeholder-count="3">
+                    <button onClick="{{ o.onClick }}" style="min-width:44px;height:24px;padding:0 10px;border:0;border-radius:5px;background:{{ o.bg }};color:{{ o.color }};font-size:12px;font-weight:500;cursor:pointer">{{ o.label }}</button>
+                  </sc-for>
+                </div>
+              </div>
+              <sc-for list="{{ settingToggles }}" as="t" hint-placeholder-count="3">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0;border-bottom:1px solid #1e1e20">
+                  <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:13px;font-weight:500;color:#ededee">{{ t.label }}</div><div style="font-size:12px;color:#8a8a93">{{ t.desc }}</div></div>
+                  <button onClick="{{ t.onToggle }}" style="position:relative;width:30px;height:18px;flex:none;border:0;border-radius:9px;background:{{ t.trackBg }};cursor:pointer;padding:0">
+                    <span style="position:absolute;top:2px;left:{{ t.knobLeft }};width:14px;height:14px;border-radius:50%;background:#f4f4f5;transition:left .15s"></span>
+                  </button>
+                </div>
+              </sc-for>
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:24px;padding:16px 0">
+                <div style="display:flex;flex-direction:column;gap:3px"><div style="font-size:13px;font-weight:500;color:#ededee">Acesso à rede</div><div style="font-size:12px;color:#8a8a93;max-width:440px;text-wrap:pretty">O Recast nunca se conecta à internet. As atualizações são instaladas a partir de um pacote baixado.</div></div>
+                <div style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:#a0a0a8">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#5bbf8a" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+                  Desativado
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ dragging }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;inset:10px;z-index:10;pointer-events:none;display:flex;align-items:center;justify-content:center;border:1.5px dashed #ee7a3a;border-radius:10px;background:rgba(21,21,22,.88)">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px">
+            <div style="font-size:15px;font-weight:600;color:#ededee">Solte para adicionar arquivos</div>
+            <div style="font-size:12px;color:#8a8a93">Eles ficam neste dispositivo</div>
+          </div>
+        </div>
+      </sc-if>
+    </main>
+
+    <sc-if value="{{ showInspector }}" hint-placeholder-val="{{ true }}">
+      <aside style="width:300px;flex:none;display:flex;flex-direction:column;min-height:0;border-left:1px solid #222224;background:#131314">
+        <sc-if value="{{ hasSel }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:none;display:flex;gap:12px;padding:18px 18px 16px;border-bottom:1px solid #1e1e20">
+            <div style="width:34px;height:42px;flex:none;border-radius:5px;background:{{ sel.iconBg }};border:1px solid {{ sel.iconBorder }};display:flex;align-items:flex-end;justify-content:center;padding-bottom:5px">
+              <span style="font-size:8.5px;font-weight:700;color:{{ sel.tint }}">{{ sel.srcExt }}</span>
+            </div>
+            <div style="min-width:0;display:flex;flex-direction:column;gap:3px;padding-top:2px">
+              <div style="font-size:13px;font-weight:600;color:#ededee;word-break:break-word;line-height:1.35">{{ sel.name }}</div>
+              <div style="font-size:11.5px;color:#7c7c85">{{ sel.meta }}</div>
+            </div>
+          </div>
+          <div style="flex:1;min-height:0;overflow:auto;padding:16px 18px;display:flex;flex-direction:column;gap:18px">
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font-size:11.5px;font-weight:500;color:#8a8a93">Formato de saída</div>
+              <button onClick="{{ sel.onPick }}" style="display:flex;align-items:center;gap:10px;height:34px;padding:0 10px 0 12px;border:1px solid #2a2a2e;border-radius:7px;background:#1a1a1c;cursor:pointer;opacity:{{ sel.pickOpacity }}" style-hover="border-color:#3a3a3f">
+                <span style="font-size:13px;font-weight:600;color:#ededee">{{ sel.targetExt }}</span>
+                <span style="font-size:12px;color:#7c7c85;flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sel.targetDesc }}</span>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#8a8a93" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+              </button>
+            </div>
+
+            <sc-if value="{{ sel.hasQuality }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;flex-direction:column;gap:9px">
+                <div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:500;color:#8a8a93">
+                  <span>Qualidade</span><span style="font-family:'JetBrains Mono',monospace;color:#d6d6da">{{ sel.qualityLabel }}</span>
+                </div>
+                <div style="display:flex;padding:2px;gap:2px;background:#0f0f10;border:1px solid #232326;border-radius:7px">
+                  <sc-for list="{{ sel.presetOpts }}" as="o" hint-placeholder-count="3">
+                    <button onClick="{{ o.onClick }}" style="flex:1;height:24px;border:0;border-radius:5px;background:{{ o.bg }};color:{{ o.color }};font-size:12px;font-weight:500;cursor:pointer">{{ o.label }}</button>
+                  </sc-for>
+                </div>
+                <input type="range" min="10" max="100" value="{{ sel.quality }}" onChange="{{ sel.onQuality }}" style="width:100%;margin:2px 0 0;accent-color:#ee7a3a">
+              </div>
+            </sc-if>
+
+            <sc-for list="{{ sel.fields }}" as="fld" hint-placeholder-count="2">
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <sc-if value="{{ fld.isSeg }}" hint-placeholder-val="{{ true }}">
+                  <div style="font-size:11.5px;font-weight:500;color:#8a8a93">{{ fld.label }}</div>
+                  <div style="display:flex;padding:2px;gap:2px;background:#0f0f10;border:1px solid #232326;border-radius:7px">
+                    <sc-for list="{{ fld.opts }}" as="o" hint-placeholder-count="3">
+                      <button onClick="{{ o.onClick }}" style="flex:1;height:24px;border:0;border-radius:5px;background:{{ o.bg }};color:{{ o.color }};font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap">{{ o.label }}</button>
+                    </sc-for>
+                  </div>
+                </sc-if>
+                <sc-if value="{{ fld.isToggle }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <div style="display:flex;flex-direction:column;gap:2px">
+                      <div style="font-size:12.5px;font-weight:500;color:#ededee">{{ fld.label }}</div>
+                      <div style="font-size:11.5px;color:#7c7c85;line-height:1.4">{{ fld.desc }}</div>
+                    </div>
+                    <button onClick="{{ fld.onToggle }}" style="position:relative;width:30px;height:18px;flex:none;border:0;border-radius:9px;background:{{ fld.trackBg }};cursor:pointer;padding:0">
+                      <span style="position:absolute;top:2px;left:{{ fld.knobLeft }};width:14px;height:14px;border-radius:50%;background:#f4f4f5;transition:left .15s"></span>
+                    </button>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-for>
+
+            <div style="display:flex;flex-direction:column;gap:7px">
+              <div style="font-size:11.5px;font-weight:500;color:#8a8a93">Salvar em</div>
+              <div style="display:flex;align-items:center;gap:8px;height:34px;padding:0 6px 0 10px;border:1px solid #232326;border-radius:7px;background:#161618">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8a8a93" stroke-width="1.6" stroke-linejoin="round"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"></path></svg>
+                <span style="flex:1;font-family:'JetBrains Mono',monospace;font-size:11.5px;color:#d6d6da;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ settings.folder }}</span>
+                <button style="height:24px;padding:0 8px;border:0;border-radius:5px;background:transparent;color:#a0a0a8;font-size:12px;font-weight:500;cursor:pointer" style-hover="background:#232326;color:#ededee">Alterar</button>
+              </div>
+            </div>
+          </div>
+          <div style="flex:none;display:flex;flex-direction:column;gap:10px;padding:14px 18px;border-top:1px solid #1e1e20">
+            <div style="display:flex;justify-content:space-between;font-size:12px">
+              <span style="color:#8a8a93">{{ sel.estLabel }}</span>
+              <span style="color:#ededee;font-weight:500">{{ sel.est }}</span>
+            </div>
+            <button onClick="{{ sel.onApply }}" style="height:30px;border:1px solid #2a2a2d;border-radius:6px;background:#1c1c1e;color:#d6d6da;font-size:12.5px;font-weight:500;cursor:pointer" style-hover="background:#232326">{{ sel.applyLabel }}</button>
+          </div>
+        </sc-if>
+        <sc-if value="{{ noSel }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center;font-size:12.5px;line-height:1.5;color:#7c7c85">Selecione um arquivo para ajustar as configurações de saída.</div>
+        </sc-if>
+      </aside>
+    </sc-if>
+  </div>
+
+  <div style="height:26px;flex:none;display:flex;align-items:center;gap:18px;padding:0 12px;border-top:1px solid #222224;background:#121213;font-size:11px;color:#7c7c85">
+    <span style="display:flex;align-items:center;gap:6px">
+      <span style="width:6px;height:6px;border-radius:50%;background:{{ engine.dot }}"></span>
+      <span style="color:#a0a0a8">{{ engine.label }}</span>
+    </span>
+    <span>{{ engine.threads }}</span>
+    <span style="margin-left:auto;display:flex;align-items:center;gap:6px">
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>
+      0 bytes enviados
+    </span>
+  </div>
+
+  <sc-if value="{{ hasPicker }}" hint-placeholder-val="{{ false }}">
+    <div onClick="{{ closePicker }}" style="position:absolute;inset:0;z-index:20"></div>
+    <div style="position:absolute;top:{{ picker.top }}px;left:{{ picker.left }}px;z-index:21;width:500px;height:372px;display:flex;flex-direction:column;background:#1a1a1c;border:1px solid #2e2e32;border-radius:10px;box-shadow:0 20px 50px rgba(0,0,0,.55);overflow:hidden">
+      <div style="height:44px;flex:none;display:flex;align-items:center;gap:9px;padding:0 12px 0 14px;border-bottom:1px solid #26262a">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7c7c85" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"></circle><path d="M20 20l-4.2-4.2"></path></svg>
+        <input ref="{{ qRef }}" value="{{ picker.q }}" onChange="{{ onPickerQ }}" placeholder="Buscar formatos" style="flex:1;min-width:0;background:transparent;border:0;outline:none;color:#ededee;font-size:13px">
+        <span style="font-size:11.5px;color:#7c7c85">{{ picker.title }}</span>
+        <span style="padding:1px 6px;border:1px solid #2a2a2e;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#7c7c85">esc</span>
+      </div>
+      <div style="flex:1;min-height:0;display:flex">
+        <div style="width:140px;flex:none;display:flex;flex-direction:column;gap:1px;padding:6px;border-right:1px solid #26262a">
+          <sc-for list="{{ picker.cats }}" as="c" hint-placeholder-count="3">
+            <button onClick="{{ c.onClick }}" style="display:flex;align-items:center;justify-content:space-between;height:30px;padding:0 9px;border:0;border-radius:6px;background:{{ c.bg }};color:{{ c.color }};font-size:12.5px;font-weight:500;cursor:pointer" style-hover="color:#ededee">
+              <span>{{ c.label }}</span>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#6b6b73">{{ c.count }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="flex:1;min-width:0;overflow:auto;padding:12px">
+          <div style="margin:0 2px 8px;font-size:11px;font-weight:500;color:#7c7c85">{{ picker.heading }}</div>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px">
+            <sc-for list="{{ picker.items }}" as="it" hint-placeholder-count="6">
+              <button onClick="{{ it.onClick }}" style="height:52px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:3px;padding:0 10px;border:1px solid {{ it.border }};border-radius:7px;background:{{ it.bg }};opacity:{{ it.opacity }};cursor:pointer;text-align:left;min-width:0" style-hover="border-color:#3d3d42">
+                <span style="font-size:13px;font-weight:600;color:{{ it.extColor }}">{{ it.ext }}</span>
+                <span style="max-width:100%;font-size:11px;color:#7c7c85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ it.desc }}</span>
+              </button>
+            </sc-for>
+          </div>
+          <sc-if value="{{ picker.empty }}" hint-placeholder-val="{{ false }}">
+            <div style="padding:40px 0;text-align:center;font-size:12.5px;color:#7c7c85">Nenhum formato compatível com este arquivo.</div>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ hasToast }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;right:16px;bottom:40px;z-index:30;display:flex;align-items:center;gap:10px;padding:10px 14px 10px 12px;background:#1f1f22;border:1px solid #2e2e32;border-radius:8px;box-shadow:0 12px 32px rgba(0,0,0,.45)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#5bbf8a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+      <div style="display:flex;flex-direction:column;gap:1px">
+        <span style="font-size:12.5px;font-weight:500;color:#ededee">{{ toast.text }}</span>
+        <span style="font-size:11.5px;color:#8a8a93">{{ toast.sub }}</span>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showInspector&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;startEmpty&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;},&quot;autoStart&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const CATS = {
+  image: { label: 'Imagens', one: 'Imagem', plural: 'todas as imagens', tint: '#8fb0f5' },
+  document: { label: 'Documentos', one: 'Documento', plural: 'todos os documentos', tint: '#c9ccd3' },
+  audio: { label: 'Áudio', one: 'Áudio', plural: 'todos os arquivos de áudio', tint: '#b89cf3' },
+  video: { label: 'Vídeo', one: 'Vídeo', plural: 'todos os vídeos', tint: '#f08a9c' },
+  archive: { label: 'Compactados', one: 'Arquivo compactado', plural: 'todos os arquivos compactados', tint: '#e2b46e' },
+  ebook: { label: 'E-books', one: 'E-book', plural: 'todos os e-books', tint: '#7fd3c4' }
+};
+const FORMATS = {
+  image: [['JPG','Com perdas · universal'],['PNG','Sem perdas'],['WEBP','Leve · web'],['AVIF','Mínimo · moderno'],['HEIC','Fotos da Apple'],['GIF','Animado'],['TIFF','Impressão · sem perdas'],['BMP','Sem compressão'],['ICO','Ícone de app']],
+  document: [['PDF','Documento portátil'],['DOCX','Microsoft Word'],['ODT','OpenDocument'],['RTF','Texto formatado'],['TXT','Texto simples'],['HTML','Página web'],['MD','Markdown']],
+  audio: [['MP3','Com perdas · universal'],['AAC','Com perdas · eficiente'],['M4A','Áudio da Apple'],['OPUS','Voz · mínimo'],['OGG','Vorbis'],['FLAC','Sem perdas'],['WAV','Sem compressão'],['AIFF','Sem compressão · Apple']],
+  video: [['MP4','H.264 · HEVC'],['MOV','QuickTime'],['WEBM','VP9 · AV1'],['MKV','Matroska'],['AVI','Legado'],['GIF','Loop animado']],
+  archive: [['ZIP','Universal'],['7Z','Melhor compressão'],['TAR.GZ','Unix · compactado'],['TAR','Unix · sem compressão']],
+  ebook: [['EPUB','Padrão aberto'],['MOBI','Kindle legado'],['AZW3','Kindle'],['FB2','FictionBook']]
+};
+const COMPAT = { image: ['image','document'], document: ['document','image','ebook'], audio: ['audio'], video: ['video','audio','image'], archive: ['archive'], ebook: ['ebook','document'] };
+const SRC_CAT = {};
+[['image','jpg jpeg png webp avif heic heif gif tiff tif bmp ico svg dng cr2 nef'],['document','pdf doc docx odt rtf txt html htm md pptx ppt key xlsx xls csv pages'],['audio','mp3 wav flac aac ogg m4a opus aiff aif wma'],['video','mp4 mov mkv webm avi wmv m4v 3gp'],['archive','zip 7z rar tar gz tgz bz2'],['ebook','epub mobi azw3 fb2']].forEach(([c, l]) => l.split(' ').forEach(e => SRC_CAT[e] = c));
+const DEFAULT_TARGET = { heic: 'JPG', heif: 'JPG', png: 'WEBP', jpg: 'WEBP', jpeg: 'WEBP', webp: 'PNG', pdf: 'DOCX', mp3: 'WAV', mp4: 'WEBM', zip: '7Z', epub: 'MOBI', mov: 'MP4', wav: 'MP3' };
+const CAT_DEFAULT = { image: 'PNG', document: 'PDF', audio: 'MP3', video: 'MP4', archive: 'ZIP', ebook: 'EPUB' };
+const FACTOR = { JPG:.55, PNG:1.3, WEBP:.32, AVIF:.24, HEIC:.4, GIF:.9, TIFF:2, BMP:3, ICO:.05, PDF:.42, DOCX:.6, ODT:.6, RTF:.8, TXT:.05, HTML:.3, MD:.04, MP3:.12, AAC:.1, M4A:.11, OPUS:.07, OGG:.1, FLAC:.55, WAV:4, AIFF:4, MP4:.38, MOV:1.1, WEBM:.3, MKV:.9, AVI:1.2, ZIP:1.05, '7Z':.85, 'TAR.GZ':.95, TAR:1.1, EPUB:.6, MOBI:.9, AZW3:.9, FB2:.5 };
+const LOSSLESS = ['PNG','TIFF','BMP','ICO','GIF','FLAC','WAV','AIFF'];
+const PRESETS = [
+  { id: 'p1', name: 'Fotos do iPhone para JPG', from: ['heic','heif'], target: 'JPG', tcat: 'image', q: 85, detail: 'Qualidade 85 · Remove localização' },
+  { id: 'p2', name: 'Imagens para web', from: ['png','jpg','jpeg','tiff','bmp'], target: 'WEBP', tcat: 'image', q: 80, detail: 'Qualidade 80 · Até 2560 px de largura' },
+  { id: 'p3', name: 'Master de podcast', from: ['wav','aiff','flac','m4a'], target: 'MP3', tcat: 'audio', q: 95, detail: '320 kbps · Estéreo' },
+  { id: 'p4', name: 'Vídeo para compartilhar', from: ['mov','mkv','avi','webm','m4v'], target: 'MP4', tcat: 'video', q: 80, detail: 'H.264 · 1080p · Equilibrado' },
+  { id: 'p5', name: 'Digitalizações para PDF pesquisável', from: ['tiff','tif'], target: 'PDF', tcat: 'document', q: 80, detail: 'Reconhecimento de texto · Imagens comprimidas' }
+];
+const HISTORY = [
+  { name: 'Q3 Board Review.pptx', from: 'PPTX', to: 'PDF', inS: 18.4e6, outS: 6.1e6, when: 'Hoje, 10:31' },
+  { name: 'IMG_4021.HEIC', from: 'HEIC', to: 'JPG', inS: 3.2e6, outS: 4.1e6, when: 'Hoje, 10:30' },
+  { name: 'Contract_signed.pdf', from: 'PDF', to: 'DOCX', inS: 2.1e6, outS: 1.4e6, when: 'Hoje, 09:42' },
+  { name: 'vacation-0418.mov', from: 'MOV', to: 'MP4', inS: 2.86e9, outS: 912e6, when: 'Hoje, 08:15' },
+  { name: 'logo-final.png', from: 'PNG', to: 'WEBP', inS: 1.8e6, outS: 240e3, when: 'Ontem, 18:03' },
+  { name: 'chapter-01.docx', from: 'DOCX', to: 'EPUB', inS: 640e3, outS: 410e3, when: 'Ontem, 11:27' },
+  { name: 'field-notes.m4a', from: 'M4A', to: 'MP3', inS: 54.2e6, outS: 38.9e6, when: '23 out, 16:50' },
+  { name: 'backup-photos.zip', from: 'ZIP', to: '7Z', inS: 4.1e9, outS: 3.6e9, when: '22 out, 21:14' }
+];
+const SAMPLES = [
+  ['Q3 Board Review.pptx', 18.4e6, '~/Documents/Board', { target: 'PDF', status: 'done', progress: 100, outSize: 6.1e6 }],
+  ['IMG_4021.HEIC', 3.2e6, '~/Pictures/iPhone', { target: 'JPG', status: 'done', progress: 100, outSize: 4.1e6 }],
+  ['interview-raw.wav', 412.6e6, '~/Music/Recordings', { target: 'FLAC', status: 'converting', progress: 46 }],
+  ['product-demo.mov', 1.24e9, '~/Movies', { target: 'MP4' }],
+  ['scan_0142.tiff', 48.1e6, '~/Documents/Scans', { target: 'PDF', ocr: true }],
+  ['brand-assets.7z', 86.3e6, '~/Downloads', { target: 'ZIP' }]
+];
+const hexA = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`; };
+const fmtSize = b => b >= 1e9 ? (b / 1e9).toFixed(2) + ' GB' : b >= 1e6 ? (b / 1e6).toFixed(1) + ' MB' : b >= 1e3 ? Math.round(b / 1e3) + ' KB' : Math.round(b) + ' B';
+const fmtEta = s => !isFinite(s) ? '' : s < 60 ? Math.max(1, Math.round(s)) + 's restantes' : Math.floor(s / 60) + 'm ' + Math.round(s % 60) + 's restantes';
+const findCat = (cat, t) => COMPAT[cat].find(c => FORMATS[c].some(x => x[0] === t)) || cat;
+const noop = () => {};
+let UID = 1;
+function makeFile(name, size, path, extra = {}) {
+  const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+  const cat = SRC_CAT[ext] || 'document';
+  let target = DEFAULT_TARGET[ext] || CAT_DEFAULT[cat];
+  if (target.toLowerCase() === ext) target = FORMATS[cat].find(f => f[0].toLowerCase() !== ext)[0];
+  const { ocr, ...rest } = extra;
+  const f = { id: 'f' + (UID++), name, ext, cat, size, path, target, status: 'ready', progress: 0, outSize: 0,
+    opts: { preset: 'Equilibrado', quality: 80, codec: 'H.264', res: 'Original', bitrate: '320 kbps', channels: 'Estéreo', resize: 'Original', strip: true, compress: true, ocr: !!ocr, level: 'Normal' }, ...rest };
+  f.targetCat = findCat(cat, f.target);
+  return f;
+}
+function seg(options, current, set) {
+  return options.map(o => ({ label: o, bg: o === current ? '#2a2a2e' : 'transparent', color: o === current ? '#ededee' : '#8a8a93', onClick: () => set(o) }));
+}
+function tg(on) { return { trackBg: on ? '#ee7a3a' : '#2e2e33', knobLeft: on ? '14px' : '2px' }; }
+
+class Component extends DCLogic {
+  winRef = React.createRef();
+  fileRef = React.createRef();
+  qRef = React.createRef();
+  state = this.init(this.props.startEmpty);
+
+  init(empty) {
+    const files = empty ? [] : SAMPLES.map(s => makeFile(...s));
+    return {
+      files, selectedId: files[3] ? files[3].id : null, view: 'convert',
+      running: !empty && this.props.autoStart !== false, picker: null, dragging: false, toast: null,
+      history: HISTORY.slice(),
+      settings: { folder: '~/Documents/Recast', conflict: 'Renomear', parallel: '2', hw: true, keep: true, notify: true }
+    };
+  }
+  componentDidMount() {
+    this.timer = setInterval(this.tick, 100);
+    window.addEventListener('keydown', this.onKey);
+  }
+  componentWillUnmount() {
+    clearInterval(this.timer); clearTimeout(this.toastT);
+    window.removeEventListener('keydown', this.onKey);
+  }
+  componentDidUpdate(prevProps, prevState) {
+    if (prevProps.startEmpty !== this.props.startEmpty) this.setState(this.init(this.props.startEmpty));
+    if (!prevState.picker && this.state.picker && this.qRef.current) this.qRef.current.focus();
+  }
+  onKey = e => {
+    const s = this.state, tag = (document.activeElement || {}).tagName;
+    if (e.key === 'Escape' && s.picker) return this.setState({ picker: null });
+    if (s.picker || tag === 'INPUT' || s.view !== 'convert') return;
+    if ((e.key === 'Backspace' || e.key === 'Delete') && s.selectedId) { e.preventDefault(); this.remove(s.selectedId); }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const i = s.files.findIndex(f => f.id === s.selectedId);
+      const n = Math.max(0, Math.min(s.files.length - 1, i + (e.key === 'ArrowDown' ? 1 : -1)));
+      if (s.files[n]) this.setState({ selectedId: s.files[n].id });
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'o') { e.preventDefault(); this.browse(); }
+  };
+  inc(f) {
+    const base = Math.max(0.5, 30 / Math.sqrt(Math.max(f.size / 1e6, 1)));
+    return base * (this.state.settings.hw && f.cat === 'video' ? 1.6 : 1);
+  }
+  factor(f) {
+    const o = f.opts, lossless = LOSSLESS.includes(f.target);
+    let k = FACTOR[f.target] ?? .8;
+    if (['image','video','audio'].includes(f.targetCat) && !lossless) k *= 0.45 + o.quality / 145;
+    if (f.targetCat === 'video') k *= ({ 'H.264': 1, HEVC: .65, AV1: .5 }[o.codec] || 1) * ({ Original: 1, '1080p': .7, '720p': .42 }[o.res] || 1);
+    if (f.targetCat === 'audio' && !lossless) k *= { '128 kbps': .4, '192 kbps': .6, '320 kbps': 1 }[o.bitrate] || 1;
+    if (f.targetCat === 'image') k *= { Original: 1, '50%': .3, '2560 px': .7 }[o.resize] || 1;
+    if (f.targetCat === 'document' && o.compress) k *= .7;
+    if (f.targetCat === 'archive') k *= { 'Rápida': 1.08, Normal: 1, 'Máxima': .92 }[o.level] || 1;
+    return k;
+  }
+  tick = () => {
+    const s = this.state;
+    if (!s.running) return;
+    const conc = parseInt(s.settings.parallel, 10);
+    const files = s.files.map(f => ({ ...f }));
+    const active = files.filter(f => f.status === 'converting');
+    for (const f of files) { if (active.length >= conc) break; if (f.status === 'ready') { f.status = 'converting'; f.progress = 0; active.push(f); } }
+    const finished = [];
+    for (const f of active) {
+      f.progress = Math.min(100, f.progress + this.inc(f));
+      if (f.progress >= 100) { f.status = 'done'; f.outSize = Math.round(f.size * this.factor(f)); finished.push(f); }
+    }
+    const patch = { files };
+    if (finished.length) patch.history = [...finished.map(f => ({ name: f.name, from: f.ext.toUpperCase(), to: f.target, inS: f.size, outS: f.outSize, when: 'Agora mesmo' })), ...s.history];
+    if (!files.some(f => f.status === 'ready' || f.status === 'converting')) {
+      patch.running = false;
+      const n = files.filter(f => f.status === 'done').length;
+      if (s.settings.notify) this.showToast('Todas as conversões concluídas', `${n} ${n === 1 ? 'arquivo salvo' : 'arquivos salvos'} em ${s.settings.folder}`);
+    }
+    this.setState(patch);
+  };
+  showToast(text, sub = '') {
+    clearTimeout(this.toastT);
+    this.setState({ toast: { text, sub } });
+    this.toastT = setTimeout(() => this.setState({ toast: null }), 3600);
+  }
+  setOpts(id, patch) {
+    this.setState(st => ({ files: st.files.map(f => f.id === id ? { ...f, opts: { ...f.opts, ...patch } } : f) }));
+  }
+  remove(id) {
+    this.setState(st => {
+      const i = st.files.findIndex(f => f.id === id);
+      const files = st.files.filter(f => f.id !== id);
+      let selectedId = st.selectedId;
+      if (selectedId === id) selectedId = (files[i] || files[i - 1] || {}).id || null;
+      return { files, selectedId, running: st.running && files.some(f => f.status !== 'done') };
+    });
+  }
+  addFiles(list) {
+    const arr = Array.from(list || []);
+    if (!arr.length) return;
+    const added = arr.map(file => makeFile(file.name, file.size, '~/Desktop'));
+    this.setState(st => ({ files: [...st.files, ...added], selectedId: added[0].id, view: 'convert' }));
+    this.showToast(`${added.length} ${added.length === 1 ? 'arquivo adicionado' : 'arquivos adicionados'}`, 'Pronto para converter');
+  }
+  browse = () => { if (this.fileRef.current) this.fileRef.current.click(); };
+  openPicker(e, mode, fileId) {
+    const r = e.currentTarget.getBoundingClientRect(), w = this.winRef.current.getBoundingClientRect();
+    const W = 500, H = 372;
+    let left = r.left - w.left, top = r.bottom - w.top + 6;
+    if (left + W > w.width - 12) left = w.width - W - 12;
+    if (top + H > w.height - 34) top = Math.max(48, r.top - w.top - H - 6);
+    let cat;
+    if (mode === 'file') { const f = this.state.files.find(x => x.id === fileId); if (!f || f.status === 'converting') return; cat = f.targetCat; }
+    else {
+      const counts = {};
+      this.state.files.filter(f => f.status !== 'converting').forEach(f => counts[f.cat] = (counts[f.cat] || 0) + 1);
+      cat = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0] || 'image';
+    }
+    this.setState({ picker: { mode, fileId, top, left, cat, q: '' } });
+  }
+  choose(ext, cat) {
+    const p = this.state.picker;
+    let n = 0;
+    const files = this.state.files.map(f => {
+      const hit = p.mode === 'file' ? f.id === p.fileId : (f.status !== 'converting' && COMPAT[f.cat].includes(cat) && f.ext !== ext.toLowerCase());
+      if (!hit) return f;
+      n++;
+      const reset = f.status === 'done';
+      return { ...f, target: ext, targetCat: cat, status: reset ? 'ready' : f.status, progress: reset ? 0 : f.progress, outSize: reset ? 0 : f.outSize };
+    });
+    this.setState({ files, picker: null });
+    if (p.mode === 'all') this.showToast(`${n} ${n === 1 ? 'arquivo definido' : 'arquivos definidos'} como ${ext}`, n ? 'Arquivos incompatíveis não foram alterados' : 'Nenhum arquivo compatível na fila');
+  }
+  applyPreset(p) {
+    let n = 0;
+    const files = this.state.files.map(f => {
+      if (f.status === 'converting' || !p.from.includes(f.ext)) return f;
+      n++;
+      return { ...f, target: p.target, targetCat: p.tcat, status: 'ready', progress: 0, outSize: 0, opts: { ...f.opts, quality: p.q, preset: { 55: 'Menor', 80: 'Equilibrado', 95: 'Melhor' }[p.q] || 'Personalizado' } };
+    });
+    this.setState({ files, view: 'convert' });
+    this.showToast(n ? `“${p.name}” aplicada a ${n} ${n === 1 ? 'arquivo' : 'arquivos'}` : `Nenhum arquivo corresponde a “${p.name}”`, p.from.map(x => x.toUpperCase()).join(', ') + ' → ' + p.target);
+  }
+  applyAll(sel) {
+    let n = 0;
+    const files = this.state.files.map(f => {
+      if (f.cat !== sel.cat || f.status === 'converting') return f;
+      n++;
+      const reset = f.status === 'done' && f.id !== sel.id;
+      return { ...f, target: sel.target, targetCat: sel.targetCat, opts: { ...sel.opts }, status: reset ? 'ready' : f.status, progress: reset ? 0 : f.progress, outSize: reset ? 0 : f.outSize };
+    });
+    this.setState({ files });
+    this.showToast(`Configurações aplicadas a ${n} ${n === 1 ? 'arquivo' : 'arquivos'}`, `${sel.target} · ${sel.opts.preset}`);
+  }
+  setSetting(k, v) { this.setState(st => ({ settings: { ...st.settings, [k]: v } })); }
+
+  row(f, sel) {
+    const s = this.state, tint = CATS[f.cat].tint;
+    const delta = f.outSize ? Math.round((f.outSize - f.size) / f.size * 100) : 0;
+    return {
+      id: f.id, name: f.name, meta: fmtSize(f.size) + ' · ' + f.path, srcExt: f.ext.toUpperCase(), targetExt: f.target,
+      tint, iconBg: hexA(tint, .08), iconBorder: hexA(tint, .28), rowBg: sel && sel.id === f.id ? '#1c1c1f' : 'transparent',
+      isReady: f.status === 'ready' && !s.running, isQueued: f.status === 'ready' && s.running,
+      isActive: f.status === 'converting', isDone: f.status === 'done',
+      activeLabel: s.running ? fmtEta((100 - f.progress) / this.inc(f) / 10) : 'Pausado',
+      barColor: s.running ? '#ee7a3a' : '#5a5a62',
+      canPick: f.status !== 'converting', noPick: f.status === 'converting',
+      pct: Math.floor(f.progress) + '%', outLabel: fmtSize(f.outSize), deltaLabel: (delta <= 0 ? '−' : '+') + Math.abs(delta) + '%',
+      onSelect: () => this.setState({ selectedId: f.id }),
+      onPick: e => this.openPicker(e, 'file', f.id),
+      onRemove: e => { e.stopPropagation(); this.remove(f.id); },
+      onReveal: e => { e.stopPropagation(); this.showToast('Exibido no Finder', f.name.replace(/\.[^.]+$/, '') + '.' + f.target.toLowerCase()); }
+    };
+  }
+  inspector(sel) {
+    if (!sel) return {};
+    const tc = sel.targetCat, o = sel.opts, tint = CATS[sel.cat].tint, lossless = LOSSLESS.includes(sel.target);
+    const upd = (k, v) => this.setOpts(sel.id, { [k]: v });
+    const segF = (label, opts, cur, k) => ({ label, isSeg: true, isToggle: false, opts: seg(opts, cur, v => upd(k, v)) });
+    const tgF = (label, desc, k) => ({ label, desc, isSeg: false, isToggle: true, ...tg(o[k]), onToggle: () => upd(k, !o[k]) });
+    const fields = [];
+    if (tc === 'video') { fields.push(segF('Codec', ['H.264','HEVC','AV1'], o.codec, 'codec')); fields.push(segF('Resolução', ['Original','1080p','720p'], o.res, 'res')); }
+    if (tc === 'audio') { if (!lossless) fields.push(segF('Taxa de bits', ['128 kbps','192 kbps','320 kbps'], o.bitrate, 'bitrate')); fields.push(segF('Canais', ['Estéreo','Mono'], o.channels, 'channels')); }
+    if (tc === 'image') { fields.push(segF('Redimensionar', ['Original','50%','2560 px'], o.resize, 'resize')); fields.push(tgF('Remover metadados', 'Remove localização e dados da câmera', 'strip')); }
+    if (tc === 'document') { fields.push(tgF('Comprimir imagens', 'Reduz imagens incorporadas para 150 dpi', 'compress')); fields.push(tgF('Reconhecer texto', 'Torna páginas digitalizadas pesquisáveis', 'ocr')); }
+    if (tc === 'archive') fields.push(segF('Compressão', ['Rápida','Normal','Máxima'], o.level, 'level'));
+    const QP = { 'Menor': 55, 'Equilibrado': 80, 'Melhor': 95 };
+    return {
+      name: sel.name, meta: fmtSize(sel.size) + ' · ' + CATS[sel.cat].one + ' ' + sel.ext.toUpperCase(), srcExt: sel.ext.toUpperCase(),
+      tint, iconBg: hexA(tint, .08), iconBorder: hexA(tint, .3),
+      targetExt: sel.target, targetDesc: (FORMATS[tc].find(x => x[0] === sel.target) || ['', ''])[1],
+      onPick: e => this.openPicker(e, 'file', sel.id), pickOpacity: sel.status === 'converting' ? '.5' : '1',
+      hasQuality: ['image','video','audio'].includes(tc) && !lossless,
+      quality: o.quality, qualityLabel: o.quality + '%',
+      presetOpts: seg(['Menor','Equilibrado','Melhor'], o.preset, v => this.setOpts(sel.id, { preset: v, quality: QP[v] })),
+      onQuality: e => { const q = +e.target.value; this.setOpts(sel.id, { quality: q, preset: Object.keys(QP).find(k => QP[k] === q) || 'Personalizado' }); },
+      fields,
+      estLabel: sel.status === 'done' ? 'Tamanho final' : 'Tamanho estimado',
+      est: sel.status === 'done' ? fmtSize(sel.outSize) : '≈ ' + fmtSize(Math.round(sel.size * this.factor(sel))),
+      applyLabel: 'Aplicar a ' + CATS[sel.cat].plural, onApply: () => this.applyAll(sel)
+    };
+  }
+
+  renderVals() {
+    const s = this.state, P = this.props;
+    const sel = s.files.find(f => f.id === s.selectedId) || null;
+    const pending = s.files.filter(f => f.status === 'ready' || f.status === 'converting');
+    const active = s.files.filter(f => f.status === 'converting');
+    const done = s.files.filter(f => f.status === 'done');
+    const pickable = s.files.filter(f => f.status !== 'converting');
+    const total = s.files.reduce((a, f) => a + f.size, 0);
+    const navItem = v => ({ bg: s.view === v ? '#1f1f22' : 'transparent', color: s.view === v ? '#ededee' : '#a0a0a8' });
+    const targets = [...new Set(pickable.map(f => f.target))];
+    const n = s.files.length;
+    const primary = s.running ? { label: 'Pausar', isPause: true, isPlay: false, opacity: '1' }
+      : active.length ? { label: 'Retomar', isPause: false, isPlay: true, opacity: '1' }
+      : pending.length ? { label: `Converter ${pending.length} ${pending.length === 1 ? 'arquivo' : 'arquivos'}`, isPause: false, isPlay: true, opacity: '1' }
+      : { label: 'Converter', isPause: false, isPlay: true, opacity: '.4' };
+
+    let picker = {}, hasPicker = false;
+    if (s.picker) {
+      hasPicker = true;
+      const p = s.picker, f = p.mode === 'file' ? s.files.find(x => x.id === p.fileId) : null;
+      const cats = f ? COMPAT[f.cat] : [...new Set(pickable.flatMap(x => COMPAT[x.cat]))];
+      const q = p.q.trim().toLowerCase();
+      const list = q
+        ? cats.flatMap(c => FORMATS[c].map(x => ({ ext: x[0], desc: x[1], cat: c }))).filter(x => x.ext.toLowerCase().includes(q) || x.desc.toLowerCase().includes(q) || CATS[x.cat].label.toLowerCase().includes(q))
+        : FORMATS[p.cat].map(x => ({ ext: x[0], desc: x[1], cat: p.cat }));
+      const items = list.map(x => {
+        const cur = f && x.ext === f.target && x.cat === f.targetCat;
+        const dis = f && (x.ext.toLowerCase() === f.ext || (x.ext === 'JPG' && f.ext === 'jpeg') || (x.ext === 'TIFF' && f.ext === 'tif'));
+        return { ext: x.ext, desc: q ? CATS[x.cat].label + ' · ' + x.desc : (dis ? 'Formato atual' : x.desc),
+          bg: cur ? 'rgba(238,122,58,.12)' : '#1f1f22', border: cur ? 'rgba(238,122,58,.55)' : '#2a2a2e',
+          extColor: cur ? '#f59a62' : '#ededee', opacity: dis ? '.4' : '1', onClick: dis ? noop : () => this.choose(x.ext, x.cat) };
+      });
+      picker = {
+        top: p.top, left: p.left, q: p.q, title: f ? f.ext.toUpperCase() + ' → …' : 'Todos os arquivos',
+        heading: q ? 'Resultados' : CATS[p.cat].label, items, empty: items.length === 0,
+        cats: cats.map(c => { const on = !q && c === p.cat; return { label: CATS[c].label, count: FORMATS[c].length, bg: on ? '#26262a' : 'transparent', color: on ? '#ededee' : '#8a8a93', onClick: () => this.setState(st => ({ picker: { ...st.picker, cat: c, q: '' } })) }; })
+      };
+    }
+
+    return {
+      winRef: this.winRef, fileRef: this.fileRef, qRef: this.qRef,
+      nav: { convert: navItem('convert'), history: navItem('history'), presets: navItem('presets'), settings: navItem('settings') },
+      goConvert: () => this.setState({ view: 'convert' }), goHistory: () => this.setState({ view: 'history' }),
+      goPresets: () => this.setState({ view: 'presets' }), goSettings: () => this.setState({ view: 'settings' }),
+      isConvert: s.view === 'convert', isHistory: s.view === 'history', isPresets: s.view === 'presets', isSettings: s.view === 'settings',
+      pendingCount: pending.length || '',
+      quickPresets: PRESETS.slice(0, 4).map(p => ({ name: p.name, from: p.from[0].toUpperCase(), to: p.target, onClick: () => this.applyPreset(p) })),
+      summary: n ? `${n} ${n === 1 ? 'arquivo' : 'arquivos'} · ${fmtSize(total)}${done.length ? ` · ${done.length} ${done.length === 1 ? 'concluído' : 'concluídos'}` : ''}` : 'Nenhum arquivo adicionado',
+      hasFiles: n > 0, noFiles: n === 0, hasDone: done.length > 0, hasPickable: pickable.length > 0,
+      allTarget: targets.length === 1 ? targets[0] : 'Vários',
+      clearDone: () => this.setState(st => { const files = st.files.filter(f => f.status !== 'done'); return { files, selectedId: files.some(f => f.id === st.selectedId) ? st.selectedId : (files[0] || {}).id || null }; }),
+      openAllPicker: e => this.openPicker(e, 'all'),
+      browse: this.browse,
+      onFiles: e => { this.addFiles(e.target.files); e.target.value = ''; },
+      primary,
+      onPrimary: () => { if (s.running) this.setState({ running: false }); else if (pending.length) this.setState({ running: true }); },
+      rows: s.files.map(f => this.row(f, sel)),
+      dragging: s.dragging,
+      onDragOver: e => { e.preventDefault(); if (!this.state.dragging) this.setState({ dragging: true }); },
+      onDragLeave: e => { if (!e.currentTarget.contains(e.relatedTarget)) this.setState({ dragging: false }); },
+      onDrop: e => { e.preventDefault(); this.setState({ dragging: false }); this.addFiles(e.dataTransfer.files); },
+
+      showInspector: s.view === 'convert' && n > 0 && P.showInspector !== false,
+      hasSel: !!sel, noSel: !sel, sel: this.inspector(sel),
+
+      historyRows: s.history.map(h => { const t = CATS[SRC_CAT[h.from.toLowerCase()] || 'document'].tint; return { ...h, iconBg: hexA(t, .08), iconBorder: hexA(t, .3), sizes: fmtSize(h.inS) + '  →  ' + fmtSize(h.outS), onReveal: () => this.showToast('Exibido no Finder', h.name.replace(/\.[^.]+$/, '') + '.' + h.to.toLowerCase()) }; }),
+      historyEmpty: s.history.length === 0,
+      clearHistory: () => this.setState({ history: [] }),
+      presetRows: PRESETS.map(p => ({ name: p.name, detail: p.detail, rule: p.from.map(x => x.toUpperCase()).join(', ') + ' → ' + p.target, onApply: () => this.applyPreset(p) })),
+
+      settings: s.settings,
+      conflictOpts: seg(['Renomear','Substituir','Ignorar'], s.settings.conflict, v => this.setSetting('conflict', v)),
+      parallelOpts: seg(['1','2','4'], s.settings.parallel, v => this.setSetting('parallel', v)),
+      settingToggles: [
+        ['hw', 'Aceleração de hardware', 'Usa a GPU e o mecanismo de mídia para vídeo quando disponível.'],
+        ['keep', 'Manter arquivos originais', 'Os originais permanecem onde estão após a conversão.'],
+        ['notify', 'Avisar ao terminar', 'Mostra uma notificação quando a fila termina.']
+      ].map(([k, label, desc]) => ({ label, desc, ...tg(s.settings[k]), onToggle: () => this.setSetting(k, !s.settings[k]) })),
+
+      engine: {
+        dot: s.running ? '#ee7a3a' : active.length ? '#8a8a93' : '#5bbf8a',
+        label: s.running ? `Convertendo ${active.length} de ${pending.length}` : active.length ? 'Pausado' : 'Pronto',
+        threads: `${s.settings.parallel} simultâneas · ${s.settings.hw ? 'Aceleração de hardware ativa' : 'Somente CPU'}`
+      },
+
+      hasPicker, picker,
+      closePicker: () => this.setState({ picker: null }),
+      onPickerQ: e => { const q = e.target.value; this.setState(st => ({ picker: { ...st.picker, q } })); },
+      hasToast: !!s.toast, toast: s.toast || {}
+    };
+  }
+}
+</script>
+</body>
+</html>

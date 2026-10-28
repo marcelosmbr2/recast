@@ -4,35 +4,49 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Desktop media converter built with Python + PySide6 (Qt Widgets). Early scaffold: only the main window shell exists so far; no conversion logic yet. User-facing UI strings are in Portuguese (pt-BR); code, identifiers and comments are in English.
+**Recast**: an offline desktop file converter (images, documents, audio, video, archives, e-books) built with Python + PySide6 (Qt Widgets). The UI reproduces `mockup/Recast.dc.html`: its markup is the visual spec, and the JS at the bottom (format tables, `makeFile`, `factor`, queue states) is the behavior spec. User-facing strings are pt-BR; code, identifiers and comments are English. No code may touch the network.
 
 ## Commands
 
-Dependencies and the virtualenv (`.venv`) are managed with **uv**; always run tools through `uv run`.
+Dependencies and `.venv` are managed with **uv**; run everything through `uv run`.
 
 ```bash
 uv sync                          # create/update .venv from uv.lock (includes dev group)
-uv run media-converter           # launch the app (gui-script entry point)
-uv run python -m media_converter # same, but keeps a console attached (stdout/tracebacks visible)
-uv run pytest                    # all tests
-uv run pytest tests/test_main_window.py::test_main_window_title   # single test
-uv add <pkg> / uv add --dev <pkg>  # add a runtime / dev dependency (updates pyproject.toml + uv.lock)
+uv run recast                    # launch the app (gui-script, no console)
+uv run python -m recast          # same, with a console (tracebacks visible)
+uv run pytest                    # all tests (~25 s; generates media with the bundled FFmpeg)
+uv run pytest tests/test_queue.py::test_pause_stops_dispatching   # single test
+uv add <pkg> / uv add --dev <pkg>
 ```
 
-No linter/formatter is configured yet.
+No linter/formatter is configured. If Qt DLLs fail to load after changing PySide6 packages, run `uv sync --reinstall-package pyside6-essentials --reinstall-package shiboken6` (uninstalling PySide6 add-ons deletes shared files).
 
 ## Architecture
 
-- `src/` layout, built with hatchling and installed editable into `.venv` by `uv sync`, so `import media_converter` works from tests without path hacks.
-- Entry flow: `[project.gui-scripts] media-converter` → `media_converter.app:main()` creates the single `QApplication`, sets app name/version (version comes from `media_converter.__version__`; keep it in sync with `pyproject.toml`), shows `MainWindow`, and returns `app.exec()`. `__main__.py` calls the same `main()`.
-- `MainWindow` (`main_window.py`) is a `QMainWindow` that builds menus, central widget and status bar in private `_create_*` helpers called from `__init__`. Follow this pattern when adding UI sections.
+Three layers under `src/recast/`; dependencies point downward only (`ui` → `core` → `engines`).
 
-## Qt-specific notes
+- **`core/`**: no widgets.
+  - `formats.py`: 1:1 port of the mockup's tables (`FORMATS`, `COMPAT`, `DEFAULT_TARGET`, `FACTOR`...) and `estimate_factor()`. Keep values identical to the mockup.
+  - `queue.py` / `ConversionQueue` owns `QueueItem`s and is the single source of truth for the UI (signals `item_changed(id)`, `items_changed`, `running_changed`, `item_converted`, `queue_finished`). Jobs run as `QRunnable`s on a `QThreadPool`; workers report back through `_Bridge` signals (queued to the GUI thread). Concurrency is enforced by `_dispatch()` using `settings.parallel`, not by the pool size. Each job writes into a temp staging dir; `_finalize()` then moves outputs into the output folder under `_FINALIZE_LOCK`, applying the conflict policy (Renomear/Substituir/Ignorar).
+  - Pause stops dispatching and suspends running tool processes (`psutil`); in-process engines finish their current file.
+  - `storage.py`: settings, history and user presets as JSON in `QStandardPaths.AppDataLocation`. `MainWindow(data_dir)` takes an override, which tests use.
+- **`engines/`**: `Engine.supports(src_ext, target, target_cat)` + `convert(job, ctx)`.
+  - `registry.engine_for()` picks the first engine that supports a pair. The format picker, `default_target()` and the queue all use it, so a pair with no engine is shown as "Indisponível".
+  - Engines: `image` (Pillow + pillow-heif; SVG via QtSvg), `media` (FFmpeg from imageio-ffmpeg; progress from `-progress pipe:1`), `archive` (zipfile/tarfile/py7zr), `document` (pypandoc-binary; PDF *output* via pandoc → HTML → `QTextDocument` → `QPdfWriter`; PDF *input* via pypdfium2, serialized by `_PDFIUM_LOCK` because pdfium isn't thread-safe).
+  - Engines must call `ctx.progress()` (it also checks cancellation) and run external tools through `ctx.run()` so cancel/pause work. Raise `ConversionError` with a pt-BR message for user-facing failures.
+  - Not supported, by design: RAR input, MOBI/AZW3, legacy Office (doc/ppt/xls/key/pages), camera RAW, OCR.
+- **`ui/`**: `main_window.py` wires the views to the queue and stores.
+  - Styling is one global stylesheet in `theme.py`. Widgets opt in with `setProperty("role", ...)` (frames/buttons) or `QLabel[t="..."]` text roles from `TEXT_ROLES`; use `widgets.text()`/`set_prop()` instead of per-widget `setStyleSheet`.
+  - Icons are the mockup's inline SVGs in `icons.py`, recolored at render time.
 
-- On Windows the `gui-scripts` launcher has no console, so `print`/uncaught exceptions are invisible; use `python -m media_converter` when debugging.
-- Tests use **pytest-qt**: take the `qtbot` fixture (it provides the `QApplication`) and register widgets with `qtbot.addWidget(...)`. Don't instantiate `QApplication` in tests.
-- For headless runs (CI, or smoke-testing from an agent shell), set `QT_QPA_PLATFORM=offscreen`. Never call `QTimer.singleShot`/create Qt objects before the `QApplication` exists — the timer silently never fires and `exec()` hangs forever.
-- Long-running work (future conversions) must not run on the GUI thread; use `QThread`/`QThreadPool` or `QProcess` and communicate back via signals.
+## Qt gotchas found here
+
+- Font sizes go through `theme.pt()`: QSS rounds fractional `px` but keeps fractional `pt`.
+- A QSS rule with only a partial border (e.g. `border-bottom`) on a `QFrame` is ignored unless it also sets `background`.
+- The `offscreen` platform has no system fonts. `recast.resources.load_fonts()` registers the bundled Inter / JetBrains Mono (tests' `conftest.py` does this), otherwise generated PDFs contain no text.
+- Tests run with `QT_QPA_PLATFORM=offscreen` (set in `conftest.py`); use `qtbot`, never a second `QApplication`. Don't create Qt timers/objects before the `QApplication` exists.
+- In Qt 6 `app.quit()` closes windows, so `MainWindow.closeEvent`'s "conversions running" prompt blocks headless scripts that quit mid-conversion.
+- Wrapped `QLabel`s need a fixed width (not just a max width) to get their full height.
 
 ## Agent tooling
 
