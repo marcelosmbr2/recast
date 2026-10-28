@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 import html
 import json
+import sys
 import threading
 from pathlib import Path
 
@@ -32,7 +33,10 @@ PANDOC_OUT = {
 
 @functools.cache
 def pandoc_exe() -> str:
-    return pypandoc.get_pandoc_path()
+    # pypandoc-binary ships pandoc here; get_pandoc_path() would first spawn `pandoc --version`,
+    # which flashes a console window in the packaged (windowed) app.
+    bundled = Path(pypandoc.__file__).parent / "files" / ("pandoc.exe" if sys.platform == "win32" else "pandoc")
+    return str(bundled) if bundled.exists() else pypandoc.get_pandoc_path()
 
 
 def _read_text(path: Path) -> str:

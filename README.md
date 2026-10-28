@@ -22,9 +22,17 @@ Conversor de arquivos para desktop, 100% offline, feito em Python com PySide6 (Q
 
 Ainda não suportados: RAR, MOBI/AZW3, formatos antigos do Office (DOC, PPT, XLS), RAW de câmera e OCR. No seletor, eles aparecem como "Indisponível". De PDF para documentos editáveis, só o texto é convertido.
 
-## Requisitos
+## Instalar (Windows)
 
-- Python 3.11+
+Baixe `Recast-<versão>-Setup.exe` na página de [releases](https://github.com/marcelosmbr2/recast/releases) e execute. A instalação é por usuário e não pede administrador; o assistente oferece instalar para todos os usuários. O instalador não é assinado digitalmente, então o Windows SmartScreen pode mostrar "O Windows protegeu o computador": clique em **Mais informações → Executar assim mesmo**.
+
+Requer Windows 10 ou 11, 64 bits.
+
+## Desenvolvimento
+
+Requisitos:
+
+- Python 3.11+ (o build de release usa 3.14, fixado em `.python-version`)
 - [uv](https://docs.astral.sh/uv/)
 
 ## Executar
@@ -42,6 +50,26 @@ Ou, com console para ver erros: `uv run python -m recast`.
 uv run pytest
 ```
 
+## Gerar o instalador
+
+Requer [Inno Setup 6](https://jrsoftware.org/isinfo.php).
+
+```bash
+powershell -ExecutionPolicy Bypass -File packaging/build.ps1
+```
+
+Gera `dist/Recast/` (app empacotado com PyInstaller), roda o autoteste do app empacotado (`Recast.exe --self-test`) e cria `dist/Recast-<versão>-Setup.exe`.
+
+## Publicar uma versão
+
+1. Atualize a versão em `pyproject.toml` e em `src/recast/__init__.py`.
+2. Faça o commit, crie a tag e envie: `git tag v0.2.0 && git push origin main v0.2.0`.
+3. O workflow [Release](.github/workflows/release.yml) roda os testes, gera o instalador e o publica na release da tag.
+
+## Licença
+
+MIT (veja [LICENSE](LICENSE)). O instalador inclui FFmpeg, pandoc, Qt e outros componentes sob as próprias licenças; veja [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
 ## Estrutura
 
 ```
@@ -50,6 +78,6 @@ src/recast/
   engines/    # motores de conversão (imagem, mídia, compactados, documentos)
   ui/         # janela, telas, inspetor, seletor de formatos, tema e ícones
   resources/  # fontes Inter e JetBrains Mono (SIL OFL)
-mockup/       # protótipo HTML de referência
+packaging/    # PyInstaller, Inno Setup e script de build do instalador
 tests/        # pytest + pytest-qt
 ```

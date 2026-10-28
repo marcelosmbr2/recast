@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 
 from PySide6.QtCore import QByteArray, QRectF, Qt
-from PySide6.QtGui import QGuiApplication, QIcon, QPainter, QPixmap
+from PySide6.QtGui import QColor, QGuiApplication, QIcon, QImage, QPainter, QPen, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 
 # name -> (svg body, stroke width or None for filled shapes)
@@ -67,8 +67,29 @@ def icon(name: str, color: str, size: int = 16, disabled_color: str | None = Non
     return result
 
 
+APP_ICON_SIZES = (16, 24, 32, 48, 64, 128, 256)
+
+
+def app_icon_image(size: int) -> QImage:
+    """The app icon: the orange convert arrows on a dark rounded tile."""
+    img = QImage(size, size, QImage.Format.Format_ARGB32)
+    img.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(img)
+    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+    inset = size * 0.04
+    tile = QRectF(inset, inset, size - 2 * inset, size - 2 * inset)
+    painter.setPen(QPen(QColor("#2a2a2e"), max(1.0, size / 64)))
+    painter.setBrush(QColor("#1c1c1e"))
+    painter.drawRoundedRect(tile, size * 0.22, size * 0.22)
+    glyph = size * 0.62
+    offset = (size - glyph) / 2
+    QSvgRenderer(QByteArray(svg("convert", "#ee7a3a"))).render(painter, QRectF(offset, offset, glyph, glyph))
+    painter.end()
+    return img
+
+
 def app_icon() -> QIcon:
     result = QIcon()
-    for size in (16, 32, 64, 128, 256):
-        result.addPixmap(pixmap("convert", "#ee7a3a", size))
+    for size in APP_ICON_SIZES:
+        result.addPixmap(QPixmap.fromImage(app_icon_image(size)))
     return result

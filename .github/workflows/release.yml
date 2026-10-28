@@ -1,0 +1,66 @@
+name: Release
+
+# Push a tag like v0.2.0 (matching recast.__version__) to build the Windows installer
+# and attach it to the GitHub release of that tag, creating the release if needed.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  windows-installer:
+    runs-on: windows-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Check that the tag matches the app version
+        shell: pwsh
+        run: |
+          $version = (uv run python -c "import recast; print(recast.__version__)").Trim()
+          if ("v$version" -ne $env:TAG) { throw "Tag $env:TAG does not match recast.__version__ ($version)" }
+
+      - name: Run tests
+        run: uv run pytest -q
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: ./packaging/build.ps1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Recast-installer
+          path: dist/*-Setup.exe
+
+      - name: Publish to the GitHub release
+        shell: pwsh
+        run: |
+          $installer = Get-Item "dist/Recast-*-Setup.exe"
+          gh release view $env:TAG *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:TAG --title "Recast $env:TAG" --generate-notes
+            if ($LASTEXITCODE -ne 0) { throw "Could not create release $env:TAG" }
+          }
+          $assets = gh release view $env:TAG --json assets --jq ".assets[].name"
+          if ($assets -contains $installer.Name) {
+            Write-Host "$($installer.Name) is already attached to $env:TAG; leaving it as is."
+          } else {
+            gh release upload $env:TAG $installer.FullName
+            if ($LASTEXITCODE -ne 0) { throw "Upload failed" }
+          }

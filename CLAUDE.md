@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**Recast**: an offline desktop file converter (images, documents, audio, video, archives, e-books) built with Python + PySide6 (Qt Widgets). The UI reproduces `mockup/Recast.dc.html`: its markup is the visual spec, and the JS at the bottom (format tables, `makeFile`, `factor`, queue states) is the behavior spec. User-facing strings are pt-BR; code, identifiers and comments are English. No code may touch the network.
+**Recast**: an offline desktop file converter (images, documents, audio, video, archives, e-books) built with Python + PySide6 (Qt Widgets). The UI was ported from an HTML mockup that is no longer in the repo; the code is now the source of truth (format tables, `estimate_factor`, queue states, theme tokens). User-facing strings are pt-BR; code, identifiers and comments are English. No code may touch the network.
 
 ## Commands
 
@@ -19,6 +19,8 @@ uv run pytest tests/test_queue.py::test_pause_stops_dispatching   # single test
 uv add <pkg> / uv add --dev <pkg>
 ```
 
+Packaging (Windows): `powershell -ExecutionPolicy Bypass -File packaging/build.ps1` → `dist/Recast/` (PyInstaller one-folder, windowed) + `dist/Recast-<version>-Setup.exe` (Inno Setup 6, per-user install). It runs `Recast.exe --self-test <report>` on the bundle (`recast/selftest.py` converts generated samples through every engine); use that after touching engines or `packaging/recast.spec`, since a tool or DLL missing from the bundle only fails at conversion time. Releases: bump `pyproject.toml` + `recast.__version__`, push tag `vX.Y.Z`; `.github/workflows/release.yml` builds and attaches the installer.
+
 No linter/formatter is configured. If Qt DLLs fail to load after changing PySide6 packages, run `uv sync --reinstall-package pyside6-essentials --reinstall-package shiboken6` (uninstalling PySide6 add-ons deletes shared files).
 
 ## Architecture
@@ -26,7 +28,7 @@ No linter/formatter is configured. If Qt DLLs fail to load after changing PySide
 Three layers under `src/recast/`; dependencies point downward only (`ui` → `core` → `engines`).
 
 - **`core/`**: no widgets.
-  - `formats.py`: 1:1 port of the mockup's tables (`FORMATS`, `COMPAT`, `DEFAULT_TARGET`, `FACTOR`...) and `estimate_factor()`. Keep values identical to the mockup.
+  - `formats.py`: format tables (`FORMATS`, `COMPAT`, `DEFAULT_TARGET`, `FACTOR`...) and `estimate_factor()`; `tests/test_formats.py` pins the expected values.
   - `queue.py` / `ConversionQueue` owns `QueueItem`s and is the single source of truth for the UI (signals `item_changed(id)`, `items_changed`, `running_changed`, `item_converted`, `queue_finished`). Jobs run as `QRunnable`s on a `QThreadPool`; workers report back through `_Bridge` signals (queued to the GUI thread). Concurrency is enforced by `_dispatch()` using `settings.parallel`, not by the pool size. Each job writes into a temp staging dir; `_finalize()` then moves outputs into the output folder under `_FINALIZE_LOCK`, applying the conflict policy (Renomear/Substituir/Ignorar).
   - Pause stops dispatching and suspends running tool processes (`psutil`); in-process engines finish their current file.
   - `storage.py`: settings, history and user presets as JSON in `QStandardPaths.AppDataLocation`. `MainWindow(data_dir)` takes an override, which tests use.
@@ -37,7 +39,13 @@ Three layers under `src/recast/`; dependencies point downward only (`ui` → `co
   - Not supported, by design: RAR input, MOBI/AZW3, legacy Office (doc/ppt/xls/key/pages), camera RAW, OCR.
 - **`ui/`**: `main_window.py` wires the views to the queue and stores.
   - Styling is one global stylesheet in `theme.py`. Widgets opt in with `setProperty("role", ...)` (frames/buttons) or `QLabel[t="..."]` text roles from `TEXT_ROLES`; use `widgets.text()`/`set_prop()` instead of per-widget `setStyleSheet`.
-  - Icons are the mockup's inline SVGs in `icons.py`, recolored at render time.
+  - Icons are inline SVGs in `icons.py`, recolored at render time.
+
+## Packaging notes
+
+- The packaged app is windowed (no console): logging goes to `recast.log` in the app data dir, and every subprocess must pass `creationflags=_NO_WINDOW` (from `engines/base.py`) or a console window flashes. `pandoc_exe()` deliberately avoids `pypandoc.get_pandoc_path()` for that reason.
+- Bundled tools are collected as data files in `packaging/recast.spec` (FFmpeg from `imageio_ffmpeg/binaries`, pandoc from `pypandoc/files`); new engines that ship binaries need an entry there and a case in `selftest.py`.
+- Keep `THIRD-PARTY-NOTICES.md` in sync when adding bundled components (FFmpeg and pandoc are GPL; they run as separate processes).
 
 ## Qt gotchas found here
 
