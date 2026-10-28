@@ -162,6 +162,8 @@ def fmt_size(b: float) -> str:
 def fmt_eta(seconds: float | None) -> str:
     if seconds is None or not math.isfinite(seconds):
         return "Calculando…"
-    if seconds < 60:
-        return f"{max(1, round(seconds))}s restantes"
-    return f"{int(seconds // 60)}m {round(seconds % 60)}s restantes"
+    total = max(1, round(seconds))
+    if total < 60:
+        return f"{total}s restantes"
+    minutes, secs = divmod(total, 60)
+    return f"{minutes}m {secs}s restantes"

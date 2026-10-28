@@ -41,8 +41,10 @@ def video_codecs(target: str) -> list[str]:
     """Codec choices offered in the inspector for a video target."""
     if target == "WEBM":
         names = ["VP9", "AV1"]
-    elif target in ("MP4", "MOV", "MKV"):
+    elif target in ("MP4", "MKV"):
         names = ["H.264", "HEVC", "AV1"]
+    elif target == "MOV":
+        names = ["H.264", "HEVC"]  # FFmpeg's MOV muxer rejects AV1
     else:
         return []
     return [n for n in names if VIDEO_CODEC[n] in encoders()]

@@ -179,8 +179,11 @@ class SegmentedControl(QFrame):
         self.set_current(current)
 
     def set_current(self, value: str | None) -> None:
+        # An exclusive group ignores setChecked(False), so lift it to allow "nothing selected".
+        self._group.setExclusive(False)
         for option, b in self._buttons.items():
             b.setChecked(option == value)
+        self._group.setExclusive(True)
 
     def set_enabled_options(self, enabled: Sequence[str]) -> None:
         for option, b in self._buttons.items():

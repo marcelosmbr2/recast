@@ -4,7 +4,7 @@ import io
 from pathlib import Path
 
 import pillow_heif
-from PIL import Image, ImageOps, ImageSequence, features
+from PIL import ExifTags, Image, ImageOps, ImageSequence, features
 from PySide6.QtCore import QBuffer, QIODevice, QSize
 from PySide6.QtGui import QImage, QPainter
 from PySide6.QtSvg import QSvgRenderer
@@ -21,6 +21,8 @@ PIL_FORMAT = {
 }
 MULTI_FRAME = {"GIF", "TIFF", "WEBP", "PDF"}
 NO_ALPHA = {"JPG", "PDF"}
+HIGH_DEPTH = {"I;16", "I;16L", "I;16B", "I;16N", "I", "F"}
+KEEP_HIGH_DEPTH = {"PNG": {"I;16", "I"}, "TIFF": {"I;16", "I", "F"}}
 
 
 def can_write(target: str) -> bool:
@@ -57,8 +59,23 @@ def _render_svg(path: Path) -> Image.Image:
     return Image.open(io.BytesIO(bytes(buf.data())))
 
 
+def _to_8bit(img: Image.Image) -> Image.Image:
+    """Scale 16/32-bit grayscale to 0..255; a plain convert() would clip it to white."""
+    if img.mode == "F":
+        lo, hi = img.getextrema()
+        top = 1.0 if hi <= 1.0 else hi
+    else:
+        img = img.convert("I")
+        lo, hi = img.getextrema()
+        top = 65535 if hi <= 65535 else hi
+    scale = 255 / top if top > 0 else 1
+    return img.point(lambda v: v * scale).convert("L")
+
+
 def prepare_frame(frame: Image.Image, target: str, opts: ConversionOptions) -> Image.Image:
     img = ImageOps.exif_transpose(frame)
+    if img.mode in HIGH_DEPTH and img.mode not in KEEP_HIGH_DEPTH.get(target, set()):
+        img = _to_8bit(img)
     if opts.resize == "50%":
         img = img.resize((max(1, img.width // 2), max(1, img.height // 2)), Image.Resampling.LANCZOS)
     elif opts.resize == "2560 px" and img.width > 2560:
@@ -76,7 +93,7 @@ def prepare_frame(frame: Image.Image, target: str, opts: ConversionOptions) -> I
             img = bg
         elif img.mode != "RGB":
             img = img.convert("RGB")
-    elif img.mode not in ("RGB", "RGBA", "L", "LA", "P", "I;16"):
+    elif img.mode not in ("RGB", "RGBA", "L", "LA", "P", *KEEP_HIGH_DEPTH.get(target, ())):
         img = img.convert("RGBA" if has_alpha else "RGB")
     if target in ("HEIC", "AVIF", "WEBP") and img.mode not in ("RGB", "RGBA"):
         img = img.convert("RGBA" if has_alpha else "RGB")
@@ -104,7 +121,10 @@ def save_image(
     if info.get("icc_profile") and target not in ("GIF", "BMP", "ICO"):
         params["icc_profile"] = info["icc_profile"]
     if not opts.strip and info.get("exif") and target in ("JPG", "WEBP", "PNG", "TIFF", "AVIF", "HEIC"):
-        params["exif"] = info["exif"]
+        exif = Image.Exif()
+        exif.load(info["exif"])
+        exif.pop(ExifTags.Base.Orientation, None)  # prepare_frame already applied the rotation
+        params["exif"] = exif.tobytes()
     if len(frames) > 1 and target in MULTI_FRAME:
         params.update(save_all=True, append_images=frames[1:])
         if target in ("GIF", "WEBP"):

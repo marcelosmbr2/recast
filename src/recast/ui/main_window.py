@@ -126,10 +126,15 @@ class MainWindow(QMainWindow):
 
     def _shortcuts(self) -> None:
         QShortcut(QKeySequence.StandardKey.Open, self, activated=self.browse)
-        for key in (Qt.Key.Key_Delete, Qt.Key.Key_Backspace):
-            QShortcut(QKeySequence(key), self, activated=self._remove_selected)
-        QShortcut(QKeySequence(Qt.Key.Key_Down), self, activated=lambda: self._move_selection(1))
-        QShortcut(QKeySequence(Qt.Key.Key_Up), self, activated=lambda: self._move_selection(-1))
+        # Queue keys only while focus is in the queue, so the inspector's slider and
+        # segmented controls keep their own arrow keys.
+        queue_keys = {
+            Qt.Key.Key_Delete: self._remove_selected, Qt.Key.Key_Backspace: self._remove_selected,
+            Qt.Key.Key_Down: lambda: self._move_selection(1), Qt.Key.Key_Up: lambda: self._move_selection(-1),
+        }
+        for key, action in queue_keys.items():
+            shortcut = QShortcut(QKeySequence(key), self.convert_view, activated=action)
+            shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
 
     # Views and selection
 
@@ -244,12 +249,18 @@ class MainWindow(QMainWindow):
         if item and item.out_path and not platform.reveal(item.out_path):
             self.toast.show_message("Arquivo não encontrado", item.out_path.name)
 
-    def _on_finished(self, n: int) -> None:
+    def _on_finished(self, saved: int, failed: int) -> None:
         if not self.settings.settings.notify:
             return
         folder = platform.display_path(self.settings.settings.folder)
-        self.toast.show_message("Todas as conversões concluídas",
-                                f"{plural(n, 'arquivo salvo', 'arquivos salvos')} em {folder}")
+        sub = f"{plural(saved, 'arquivo salvo', 'arquivos salvos')} em {folder}"
+        if failed:
+            self.toast.show_message(
+                f"Conversões concluídas com {plural(failed, 'falha', 'falhas')}",
+                f"{sub} · {plural(failed, 'arquivo falhou', 'arquivos falharam')}", ok=False,
+            )
+        else:
+            self.toast.show_message("Todas as conversões concluídas", sub)
         QApplication.alert(self)
 
     def closeEvent(self, event) -> None:

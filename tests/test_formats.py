@@ -65,6 +65,8 @@ def test_fmt_size_and_eta():
     assert fmt_size(12) == "12 B"
     assert fmt_eta(12.4) == "12s restantes"
     assert fmt_eta(125) == "2m 5s restantes"
+    assert fmt_eta(119.6) == "2m 0s restantes"  # rounds once, never "1m 60s"
+    assert fmt_eta(59.6) == "1m 0s restantes"
 
 
 def test_history_when_label():

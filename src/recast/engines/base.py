@@ -82,6 +82,12 @@ class JobContext:
                 if on_line:
                     on_line(line.strip())
             proc.wait()
+        except BaseException:
+            # on_line raised (e.g. Cancelled): cancel() may have found no process to kill, so do it here.
+            if proc.poll() is None:
+                proc.kill()
+            proc.wait()
+            raise
         finally:
             with self._lock:
                 self._proc = None

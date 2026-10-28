@@ -169,3 +169,34 @@ def test_duplicate_pending_paths_are_ignored(store, images):
     q.add_paths(images)
     assert q.add_paths(images) == []
     assert len(q.items) == 3
+
+
+def test_eta_recovers_after_pause_and_resume(store, images, monkeypatch):
+    clock = iter(range(100, 200))
+    monkeypatch.setattr(queue_mod.time, "monotonic", lambda: next(clock))
+    q = ConversionQueue(store)
+    [item] = q.add_paths(images[:1])
+    item.status = Status.CONVERTING  # simulate a job in flight without starting a worker
+    q.running = True
+    q._on_progress(item.id, 0.1)
+    q._on_progress(item.id, 0.2)
+    assert item.eta is not None
+    q.pause()
+    q.start()
+    q._on_progress(item.id, 0.3)
+    q._on_progress(item.id, 0.4)
+    assert item.eta is not None
+
+
+def test_finish_reports_this_runs_saved_and_failed(qtbot, store, images, tmp_path):
+    q = ConversionQueue(store)
+    q.add_paths(images[:1])
+    with qtbot.waitSignal(q.queue_finished, timeout=20000) as first:
+        q.start()
+    assert first.args == [1, 0]
+    broken = tmp_path / "in" / "broken.png"
+    broken.write_bytes(b"not an image")
+    q.add_paths([images[1], broken])
+    with qtbot.waitSignal(q.queue_finished, timeout=20000) as second:
+        q.start()
+    assert second.args == [1, 1]  # the file saved in the first run is not counted again

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import functools
 import html
+import json
 import threading
 from pathlib import Path
 
@@ -62,10 +63,10 @@ def _open_pdf(path: Path) -> pdfium.PdfDocument:
         raise ConversionError(f"PDF inválido: {e}") from e
 
 
-def _text_to_html(text: str, title: str) -> str:
+def _text_to_html(text: str) -> str:
     paragraphs = [p.strip() for p in text.replace("\r\n", "\n").split("\n\n") if p.strip()]
     body = "\n".join("<p>" + html.escape(p).replace("\n", "<br>") + "</p>" for p in paragraphs)
-    return f"<!doctype html><html><head><meta charset='utf-8'><title>{html.escape(title)}</title></head><body>{body}</body></html>"
+    return f"<!doctype html><html><head><meta charset='utf-8'></head><body>{body}</body></html>"
 
 
 class DocumentEngine(Engine):
@@ -98,15 +99,21 @@ class DocumentEngine(Engine):
             return job.src, PANDOC_IN[job.src_ext]
         text = _pdf_text(job.src, ctx) if job.src_ext == "pdf" else _read_text(job.src)
         tmp = ctx.tmp / "input.html"
-        tmp.write_text(_text_to_html(text, job.stem), encoding="utf-8")
+        tmp.write_text(_text_to_html(text), encoding="utf-8")
         return tmp, "html"
 
     def _pandoc(self, src: Path, fmt: str, to: str, dst: Path, job: Job, ctx: JobContext) -> None:
-        args = [pandoc_exe(), str(src), "-f", fmt, "-t", to, "-o", str(dst), "--metadata", f"title={job.stem}"]
+        args = [pandoc_exe(), str(src), "-f", fmt, "-t", to, "-o", str(dst)]
         if to in ("html", "rtf"):
             args.append("--standalone")
         if to == "html":
-            args.append("--embed-resources")
+            # pagetitle sets <title> only; --metadata title would add a visible heading.
+            args += ["--embed-resources", "--metadata", f"pagetitle={job.stem}"]
+        if to in ("epub", "fb2"):
+            # E-books need a title. A metadata file is a fallback: the document's own title wins.
+            meta = ctx.tmp / "meta.yaml"
+            meta.write_text(json.dumps({"title": job.stem}, ensure_ascii=False), encoding="utf-8")
+            args += ["--metadata-file", str(meta)]
         ctx.progress(0.5)
         ctx.run(args)
 
@@ -115,13 +122,13 @@ class DocumentEngine(Engine):
         media = ctx.tmp / "media"
         if job.src_ext in TEXT_IN:
             text = _pdf_text(job.src, ctx) if job.src_ext == "pdf" else _read_text(job.src)
-            page_html = _text_to_html(text, job.stem)
+            page_html = _text_to_html(text)
         else:
             out = ctx.tmp / "page.html"
             ctx.progress(0.2)
             ctx.run([
                 pandoc_exe(), str(job.src), "-f", PANDOC_IN[job.src_ext], "-t", "html", "--standalone",
-                "--extract-media", str(media), "--metadata", f"title={job.stem}", "-o", str(out),
+                "--extract-media", str(media), "--metadata", f"pagetitle={job.stem}", "-o", str(out),
             ])
             page_html = out.read_text(encoding="utf-8")
         ctx.progress(0.6)

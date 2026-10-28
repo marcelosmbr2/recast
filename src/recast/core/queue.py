@@ -114,7 +114,7 @@ class ConversionQueue(QObject):
     items_changed = Signal()
     running_changed = Signal(bool)
     item_converted = Signal(object)
-    queue_finished = Signal(int)
+    queue_finished = Signal(int, int)  # files saved, files failed in this run
 
     def __init__(self, settings: SettingsStore, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -123,6 +123,7 @@ class ConversionQueue(QObject):
         self.running = False
         self._jobs: dict[str, JobContext] = {}
         self._rates: dict[str, tuple[float, float, float | None]] = {}
+        self._run_saved = self._run_failed = 0
         self._pool = QThreadPool(self)
         self._pool.setMaxThreadCount(4)
         self._bridge = _Bridge(self)
@@ -253,6 +254,8 @@ class ConversionQueue(QObject):
         self.running = True
         for ctx in self._jobs.values():
             ctx.set_suspended(False)
+        for item in self.active:  # measure the rate again from here; pause dropped it
+            self._rates[item.id] = (time.monotonic(), item.progress, None)
         self.running_changed.emit(True)
         self._dispatch()
 
@@ -371,11 +374,15 @@ class ConversionQueue(QObject):
         if not item or item.status is not Status.CONVERTING:
             return
         now = time.monotonic()
-        t0, p0, rate = self._rates.get(item_id, (now, item.progress, None))
-        if self.running and now > t0 and fraction > p0:
-            inst = (fraction - p0) / (now - t0)
-            rate = inst if rate is None else 0.3 * inst + 0.7 * rate
-            self._rates[item_id] = (now, fraction, rate)
+        rate = None
+        if item_id not in self._rates:
+            self._rates[item_id] = (now, fraction, None)
+        else:
+            t0, p0, rate = self._rates[item_id]
+            if self.running and now > t0 and fraction > p0:
+                inst = (fraction - p0) / (now - t0)
+                rate = inst if rate is None else 0.3 * inst + 0.7 * rate
+                self._rates[item_id] = (now, fraction, rate)
         item.progress = fraction
         item.eta = (1 - fraction) / rate if rate else None
         self.item_changed.emit(item_id)
@@ -389,6 +396,7 @@ class ConversionQueue(QObject):
             item.progress, item.out_path, item.out_size, item.eta = 1.0, Path(out), size, None
             self.item_changed.emit(item_id)
             if not skipped:
+                self._run_saved += 1
                 self.item_converted.emit(item)
         self._dispatch()
         self._check_finished()
@@ -399,6 +407,7 @@ class ConversionQueue(QObject):
         item = self.get(item_id)
         if item:
             item.status, item.error, item.eta = Status.ERROR, message, None
+            self._run_failed += 1
             self.item_changed.emit(item_id)
         self._dispatch()
         self._check_finished()
@@ -411,4 +420,5 @@ class ConversionQueue(QObject):
         if was_running:
             self.running_changed.emit(False)
             if notify:
-                self.queue_finished.emit(sum(1 for i in self.items if i.status is Status.DONE))
+                self.queue_finished.emit(self._run_saved, self._run_failed)
+        self._run_saved = self._run_failed = 0  # nothing pending: the run is over

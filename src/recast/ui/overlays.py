@@ -4,7 +4,7 @@ from PySide6.QtCore import QEvent, QObject, QRectF, Qt, QTimer
 from PySide6.QtGui import QColor, QPainter, QPen
 from PySide6.QtWidgets import QFrame, QGraphicsDropShadowEffect, QWidget
 
-from recast.ui import theme
+from recast.ui import icons, theme
 from recast.ui.widgets import hbox, icon_label, text, vbox
 
 
@@ -21,7 +21,8 @@ class Toast(QFrame):
         shadow.setColor(QColor(0, 0, 0, 115))
         self.setGraphicsEffect(shadow)
         row = hbox(self, (12, 10, 14, 10), 10)
-        row.addWidget(icon_label("check", theme.GREEN, 15))
+        self._icon = icon_label("check", theme.GREEN, 15)
+        row.addWidget(self._icon)
         col = vbox(spacing=1)
         self._title = text("", "toast-title")
         self._sub = text("", "toast-sub")
@@ -32,7 +33,8 @@ class Toast(QFrame):
         host.installEventFilter(self)
         self.hide()
 
-    def show_message(self, title: str, sub: str = "") -> None:
+    def show_message(self, title: str, sub: str = "", ok: bool = True) -> None:
+        self._icon.setPixmap(icons.pixmap("check", theme.GREEN, 15) if ok else icons.pixmap("alert", theme.RED, 15))
         self._title.setText(title)
         self._sub.setText(sub)
         self._sub.setVisible(bool(sub))

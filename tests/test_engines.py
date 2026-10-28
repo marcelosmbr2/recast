@@ -1,15 +1,18 @@
+import sys
 import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
 
+import psutil
 import py7zr
 import pytest
 from PIL import Image
 
 from recast.core.models import ConversionOptions
 from recast.core.queue import split_name
-from recast.engines.base import Job, JobContext
+from recast.engines.base import Cancelled, Job, JobContext
+from recast.engines.media import video_codecs
 from recast.engines.registry import engine_for
 
 
@@ -111,3 +114,69 @@ def test_unsupported_pairs():
     assert engine_for("mobi", "EPUB", "ebook") is None
     assert engine_for("pdf", "PDF", "document") is None
     assert engine_for("epub", "MOBI", "ebook") is None
+
+
+def test_run_kills_child_when_on_line_raises(tmp_path):
+    ctx = JobContext(lambda f: None, tmp_path)
+    seen = {}
+
+    def on_line(_line):
+        seen["pid"] = ctx._proc.pid
+        raise Cancelled
+
+    script = "import time\nwhile True:\n    print('tick', flush=True)\n    time.sleep(0.05)"
+    with pytest.raises(Cancelled):
+        ctx.run([sys.executable, "-c", script], on_line)
+    assert not psutil.pid_exists(seen["pid"])
+
+
+def test_mov_never_offers_av1(samples, tmp_path):
+    assert "AV1" not in video_codecs("MOV")
+    convert(samples["mp4"], "MOV", "video", tmp_path, codec="AV1")  # falls back to H.264
+
+
+def test_16bit_grayscale_is_scaled_not_clipped(tmp_path):
+    src = tmp_path / "deep.png"
+    Image.new("I;16", (8, 8), 3000).save(src)
+    [jpg] = convert(src, "JPG", "image", tmp_path)
+    assert Image.open(jpg).getpixel((0, 0))[0] == pytest.approx(3000 / 65535 * 255, abs=2)
+    [tiff] = convert(src, "TIFF", "image", tmp_path)
+    assert Image.open(tiff).getpixel((0, 0)) == 3000  # lossless targets keep 16-bit
+
+
+def test_kept_exif_drops_orientation(tmp_path):
+    src = tmp_path / "phone.jpg"
+    img = Image.new("RGB", (40, 20), "red")
+    exif = img.getexif()
+    exif[0x0112] = 6  # Orientation: rotate 90° CW
+    exif[0x010F] = "Camera Co"  # Make
+    img.save(src, exif=exif.tobytes())
+    [kept] = convert(src, "JPG", "image", tmp_path, strip=False)
+    out = Image.open(kept)
+    assert out.size == (20, 40)
+    assert 0x0112 not in out.getexif() and out.getexif()[0x010F] == "Camera Co"
+    [stripped] = convert(src, "JPG", "image", tmp_path, strip=True)
+    assert len(Image.open(stripped).getexif()) == 0
+
+
+def test_documents_get_no_injected_title(samples, tmp_path):
+    [odt] = convert(samples["md"], "ODT", "document", tmp_path)
+    assert ">notes<" not in zipfile.ZipFile(odt).read("content.xml").decode()
+    [pdf] = convert(samples["md"], "PDF", "document", tmp_path)
+    [txt] = convert(pdf, "TXT", "document", tmp_path)
+    assert txt.read_text(encoding="utf-8").lstrip().startswith("Título")
+
+
+def test_ebook_title_falls_back_to_file_name(samples, tmp_path):
+    [plain] = convert(samples["md"], "EPUB", "ebook", tmp_path)
+    assert "<dc:title" in (opf := _epub_opf(plain)) and ">notes<" in opf
+    titled = tmp_path / "titled.md"
+    titled.write_text("---\ntitle: Meu Livro\n---\n\nTexto.\n", encoding="utf-8")
+    [book] = convert(titled, "EPUB", "ebook", tmp_path)
+    assert ">Meu Livro<" in _epub_opf(book)
+
+
+def _epub_opf(path: Path) -> str:
+    with zipfile.ZipFile(path) as zf:
+        name = next(n for n in zf.namelist() if n.endswith(".opf"))
+        return zf.read(name).decode("utf-8")

@@ -56,6 +56,7 @@ class ConvertView(QWidget):
         self._queue = queue
         self._rows: dict[str, QueueRow] = {}
         self._selected: str | None = None
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)  # clicking a row puts the queue keys in scope
         col = vbox(self)
 
         bar, row, self._summary = header("Converter", "Nenhum arquivo adicionado")

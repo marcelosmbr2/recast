@@ -150,3 +150,48 @@ def test_end_to_end_conversion_records_history(window, files, qtbot, tmp_path):
     reloaded = MainWindow(tmp_path / "data")
     assert sorted(e.name for e in reloaded.history.entries) == ["a.png", "b.png", "c.jpg"]
     reloaded.deleteLater()
+
+
+def test_segmented_control_can_show_no_selection(qtbot):
+    seg = SegmentedControl(["Menor", "Equilibrado", "Melhor"], "Equilibrado")
+    qtbot.addWidget(seg)
+    seg.set_current("Personalizado")
+    assert seg.current() is None
+    seg.set_current("Melhor")
+    assert seg.current() == "Melhor"
+
+
+def test_custom_quality_clears_preset_buttons(window, files):
+    window.add_files(files)
+    window.inspector._controls["quality_slider"].setValue(70)
+    assert window.queue.items[0].opts.preset == "Personalizado"
+    assert window.inspector._controls["quality_seg"].current() is None
+
+
+def test_arrow_keys_reach_the_quality_slider(window, files, qtbot):
+    window.add_files(files)
+    first = window._selected
+    slider = window.inspector._controls["quality_slider"]
+    slider.setFocus()
+    qtbot.keyClick(slider, Qt.Key.Key_Up)
+    assert slider.value() == 81 and window._selected == first
+
+
+def test_failed_conversion_is_reported_in_toast(window, files, qtbot, tmp_path):
+    broken = tmp_path / "in" / "broken.png"
+    broken.write_bytes(b"not an image")
+    window.add_files([files[0], broken])
+    with qtbot.waitSignal(window.queue.queue_finished, timeout=20000):
+        window.convert_view._primary.click()
+    assert window.toast._title.text() == "Conversões concluídas com 1 falha"
+    assert "1 arquivo salvo" in window.toast._sub.text() and "1 arquivo falhou" in window.toast._sub.text()
+
+
+def test_queue_keys_work_when_the_queue_has_focus(window, files, qtbot):
+    window.add_files(files)
+    items = list(window.queue.items)
+    window.convert_view.setFocus()
+    qtbot.keyClick(window.convert_view, Qt.Key.Key_Down)
+    assert window._selected == items[1].id
+    qtbot.keyClick(window.convert_view, Qt.Key.Key_Delete)
+    assert [i.name for i in window.queue.items] == ["a.png", "c.jpg"]
