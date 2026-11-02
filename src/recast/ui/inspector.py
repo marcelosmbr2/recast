@@ -8,6 +8,7 @@ from recast.core.formats import (
     quality_preset_name,
 )
 from recast.core.models import QueueItem, Status
+from recast.engines.download import fmt_duration, host_label
 from recast.engines.media import video_codecs
 from recast.ui import icons, platform, theme
 from recast.ui.widgets import (
@@ -41,6 +42,8 @@ def _fields_for(item: QueueItem) -> list[tuple]:
 def estimate_label(item: QueueItem) -> tuple[str, str]:
     if item.status is Status.DONE:
         return "Tamanho final", fmt_size(item.out_size)
+    if not item.size:
+        return "Tamanho estimado", "—"
     return "Tamanho estimado", "≈ " + fmt_size(round(item.size * estimate_factor(item.target, item.target_cat, item.opts)))
 
 
@@ -139,7 +142,11 @@ class Inspector(QFrame):
         cat = CATEGORIES[item.cat]
         self._badge.set_file(item.ext, cat.tint)
         self._name.setText(item.name)
-        self._meta.setText(f"{fmt_size(item.size)} · {cat.one} {item.ext.upper()}")
+        if item.url:
+            meta = f"{host_label(item.url)} · {fmt_duration(item.duration)} · {cat.one}" if item.duration else f"{host_label(item.url)} · {cat.one}"
+        else:
+            meta = f"{fmt_size(item.size)} · {cat.one} {item.ext.upper()}"
+        self._meta.setText(meta)
         self._apply.setText("Aplicar a " + cat.plural)
 
         box = self._section("Formato de saída")

@@ -46,6 +46,7 @@ def column_header(labels: list[str], widths: tuple[int, ...]) -> QWidget:
 
 class ConvertView(QWidget):
     browse_requested = Signal()
+    link_requested = Signal()
     all_picker_requested = Signal(QWidget)
     row_selected = Signal(str)
     pick_requested = Signal(str, QWidget)
@@ -67,11 +68,14 @@ class ConvertView(QWidget):
         self._all_target = self._all.add_text("", "small-strong")
         self._all.add_icon("chevron", theme.TEXT_3, 12)
         self._all.clicked.connect(lambda: self.all_picker_requested.emit(self._all))
+        link = Button("Adicionar link", "secondary", "link", color=theme.TEXT_2)
+        link.setToolTip(f"Baixar um vídeo do YouTube ou do Vimeo ({platform.SHORTCUT_MOD}+L)")
+        link.clicked.connect(self.link_requested)
         add = Button("Adicionar arquivos", "secondary", "plus", color=theme.TEXT_2)
         add.clicked.connect(self.browse_requested)
         self._primary = Button("Converter", "primary", "play", color=theme.ACCENT_TEXT, icon_size=12)
         self._primary.clicked.connect(queue.toggle)
-        for b in (self._clear, self._all, add, self._primary):
+        for b in (self._clear, self._all, link, add, self._primary):
             row.addWidget(b)
         col.addWidget(bar)
 
@@ -125,7 +129,7 @@ class ConvertView(QWidget):
         zcol.addSpacing(6)
         body = text(
             "Imagens, documentos, áudio, vídeo, arquivos compactados e e-books. "
-            "Tudo é processado neste dispositivo.", "empty-body", wrap=True,
+            "Arquivos locais nunca saem deste dispositivo.", "empty-body", wrap=True,
         )
         body.setAlignment(Qt.AlignmentFlag.AlignCenter)
         body.setFixedWidth(380)  # a fixed width lets the wrapped label get its full height
@@ -145,6 +149,10 @@ class ConvertView(QWidget):
         actions.addLayout(keys)
         actions.addStretch(1)
         zcol.addLayout(actions)
+        zcol.addSpacing(10)
+        link = Button("Ou cole um link do YouTube ou Vimeo", "link", "link", color=theme.TEXT_3, height=24)
+        link.clicked.connect(self.link_requested)
+        zcol.addWidget(link, 0, Qt.AlignmentFlag.AlignHCenter)
         center = hbox()
         center.addStretch(1)
         center.addWidget(zone, 10)

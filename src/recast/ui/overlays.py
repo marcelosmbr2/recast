@@ -62,8 +62,8 @@ class DropOverlay(QWidget):
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         col = vbox(self, spacing=6)
         col.addStretch(1)
-        title = text("Solte para adicionar arquivos", "drop-title")
-        sub = text("Eles ficam neste dispositivo", "setting-desc")
+        title = text("Solte para adicionar", "drop-title")
+        sub = text("Arquivos ou links do YouTube e Vimeo", "setting-desc")
         for label in (title, sub):
             label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             col.addWidget(label)

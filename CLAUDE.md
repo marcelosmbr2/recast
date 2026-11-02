@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**Recast**: an offline desktop file converter (images, documents, audio, video, archives, e-books) built with Python + PySide6 (Qt Widgets). The UI was ported from an HTML mockup that is no longer in the repo; the code is now the source of truth (format tables, `estimate_factor`, queue states, theme tokens). User-facing strings are pt-BR; code, identifiers and comments are English. No code may touch the network.
+**Recast**: an offline desktop file converter (images, documents, audio, video, archives, e-books) built with Python + PySide6 (Qt Widgets). The UI was ported from an HTML mockup that is no longer in the repo; the code is now the source of truth (format tables, `estimate_factor`, queue states, theme tokens). User-facing strings are pt-BR; code, identifiers and comments are English. Only `engines/download.py` (yt-dlp, for YouTube/Vimeo links) may touch the network; everything else stays offline and local files are never uploaded.
 
 ## Commands
 
@@ -30,11 +30,12 @@ Three layers under `src/recast/`; dependencies point downward only (`ui` → `co
 - **`core/`**: no widgets.
   - `formats.py`: format tables (`FORMATS`, `COMPAT`, `DEFAULT_TARGET`, `FACTOR`...) and `estimate_factor()`; `tests/test_formats.py` pins the expected values.
   - `queue.py` / `ConversionQueue` owns `QueueItem`s and is the single source of truth for the UI (signals `item_changed(id)`, `items_changed`, `running_changed`, `item_converted`, `queue_finished`). Jobs run as `QRunnable`s on a `QThreadPool`; workers report back through `_Bridge` signals (queued to the GUI thread). Concurrency is enforced by `_dispatch()` using `settings.parallel`, not by the pool size. Each job writes into a temp staging dir; `_finalize()` then moves outputs into the output folder under `_FINALIZE_LOCK`, applying the conflict policy (Renomear/Substituir/Ignorar).
-  - Pause stops dispatching and suspends running tool processes (`psutil`); in-process engines finish their current file.
+  - Pause stops dispatching and suspends running tool processes (`psutil`); in-process engines finish their current file, except the download engine, whose yt-dlp hook blocks on `ctx.wait_if_suspended()` between chunks.
+  - Link items (`QueueItem.url`) use the pseudo-extension `url` with `cat="video"`; `path` only holds the sanitized title (used as the output stem) and they are never moved to the trash. `ConversionQueue.add_url()` takes the `VideoInfo` the dialog resolved.
   - `storage.py`: settings, history and user presets as JSON in `QStandardPaths.AppDataLocation`. `MainWindow(data_dir)` takes an override, which tests use.
 - **`engines/`**: `Engine.supports(src_ext, target, target_cat)` + `convert(job, ctx)`.
   - `registry.engine_for()` picks the first engine that supports a pair. The format picker, `default_target()` and the queue all use it, so a pair with no engine is shown as "Indisponível".
-  - Engines: `image` (Pillow + pillow-heif; SVG via QtSvg), `media` (FFmpeg from imageio-ffmpeg; progress from `-progress pipe:1`), `archive` (zipfile/tarfile/py7zr), `document` (pypandoc-binary; PDF *output* via pandoc → HTML → `QTextDocument` → `QPdfWriter`; PDF *input* via `pdf_import.py`, which rebuilds paragraphs, headings, lists and images from pypdfium2 character boxes and image objects, then feeds HTML to pandoc; every pdfium call is serialized by `pdf_import.PDFIUM_LOCK` because pdfium isn't thread-safe).
+  - Engines: `image` (Pillow + pillow-heif; SVG via QtSvg), `media` (FFmpeg from imageio-ffmpeg; progress from `-progress pipe:1`), `archive` (zipfile/tarfile/py7zr), `document` (pypandoc-binary; PDF *output* via pandoc → HTML → `QTextDocument` → `QPdfWriter`; PDF *input* via `pdf_import.py`, which rebuilds paragraphs, headings, lists and images from pypdfium2 character boxes and image objects, then feeds HTML to pandoc; every pdfium call is serialized by `pdf_import.PDFIUM_LOCK` because pdfium isn't thread-safe), `download` (yt-dlp in-process for `url` sources; MP4/WEBM/MKV come straight from the site when the container matches, anything else is handed to `MediaEngine` afterwards; `parse_video_url()` accepts single YouTube/Vimeo videos only; yt-dlp errors are mapped to pt-BR in `translate_error()`).
   - Engines must call `ctx.progress()` (it also checks cancellation) and run external tools through `ctx.run()` so cancel/pause work. Raise `ConversionError` with a pt-BR message for user-facing failures.
   - Not supported, by design: RAR input, MOBI/AZW3, legacy Office (doc/ppt/xls/key/pages), camera RAW, OCR.
 - **`ui/`**: `main_window.py` wires the views to the queue and stores.
@@ -44,7 +45,7 @@ Three layers under `src/recast/`; dependencies point downward only (`ui` → `co
 ## Packaging notes
 
 - The packaged app is windowed (no console): logging goes to `recast.log` in the app data dir, and every subprocess must pass `creationflags=_NO_WINDOW` (from `engines/base.py`) or a console window flashes. `pandoc_exe()` deliberately avoids `pypandoc.get_pandoc_path()` for that reason.
-- Bundled tools are collected as data files in `packaging/recast.spec` (FFmpeg from `imageio_ffmpeg/binaries`, pandoc from `pypandoc/files`); new engines that ship binaries need an entry there and a case in `selftest.py`.
+- Bundled tools are collected as data files in `packaging/recast.spec` (FFmpeg from `imageio_ffmpeg/binaries`, pandoc from `pypandoc/files`, Deno from the `deno` package into `_internal/tools/`, found by `download.deno_exe()`); new engines that ship binaries need an entry there and a case in `selftest.py`. yt-dlp needs Deno + `yt-dlp-ejs` for full YouTube support and brings its own PyInstaller hook; `mutagen` (GPL, optional) is excluded on purpose. The self-test checks the download engine offline only (imports, extractors, `deno --version`).
 - Keep `THIRD-PARTY-NOTICES.md` in sync when adding bundled components (FFmpeg and pandoc are GPL; they run as separate processes).
 
 ## Qt gotchas found here

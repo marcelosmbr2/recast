@@ -1,7 +1,7 @@
 [project]
 name = "recast"
 version = "0.1.0"
-description = "Recast: conversor de arquivos offline com PySide6 (Qt Widgets)."
+description = "Recast: conversor de arquivos para desktop com PySide6 (Qt Widgets), com download de vídeos por link."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -13,6 +13,8 @@ dependencies = [
     "pypandoc-binary>=1.17",
     "pypdfium2>=5.14.0",
     "PySide6-Essentials>=6.8",
+    "yt-dlp[default]>=2025.10",
+    "deno>=2.3",
 ]
 
 [project.gui-scripts]

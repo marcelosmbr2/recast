@@ -41,7 +41,7 @@ class HistoryRow(QFrame):
         crow.addStretch(1)
         row.addWidget(conv)
 
-        sizes = text(f"{fmt_size(entry.in_size)}  →  {fmt_size(entry.out_size)}", "small")
+        sizes = text(f"{fmt_size(entry.in_size)}  →  {fmt_size(entry.out_size)}" if entry.in_size else fmt_size(entry.out_size), "small")
         sizes.setFixedWidth(COLUMNS[1])
         row.addWidget(sizes)
         when = text(entry.when_label(), "small-dim")
