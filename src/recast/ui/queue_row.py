@@ -5,6 +5,7 @@ from PySide6.QtWidgets import QFrame, QProgressBar, QStackedWidget, QWidget
 
 from recast.core.formats import CATEGORIES, fmt_eta, fmt_size
 from recast.core.models import QueueItem, Status
+from recast.engines.download import fmt_duration, host_label
 from recast.ui import platform, theme
 from recast.ui.widgets import (
     Button, CompositeButton, ElidedLabel, FileBadge, hbox, icon_label, set_prop, text, vbox,
@@ -16,6 +17,13 @@ SPACING = 16
 
 
 def item_meta(item: QueueItem) -> str:
+    if item.url:
+        parts = [host_label(item.url)]
+        if item.duration:
+            parts.append(fmt_duration(item.duration))
+        if item.uploader:
+            parts.append(item.uploader)
+        return " · ".join(parts)
     return f"{fmt_size(item.size)} · {platform.display_path(str(item.path.parent))}"
 
 

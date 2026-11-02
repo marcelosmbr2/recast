@@ -17,6 +17,7 @@ from PIL import Image
 from recast.core.models import ConversionOptions
 from recast.core.queue import split_name
 from recast.engines.base import _NO_WINDOW, Job, JobContext
+from recast.engines.download import DownloadEngine, base_options, deno_exe
 from recast.engines.media import ffmpeg_exe
 from recast.engines.registry import engine_for
 
@@ -56,6 +57,26 @@ def _convert(src: Path, target: str, target_cat: str, root: Path) -> Path:
     return job.dst
 
 
+def _check_download_engine() -> None:
+    """Offline: the bundle must contain yt-dlp, its lazy extractors, the EJS scripts and Deno."""
+    import yt_dlp
+    import yt_dlp.extractor.vimeo  # noqa: F401
+    import yt_dlp.extractor.youtube  # noqa: F401
+    import yt_dlp_ejs  # noqa: F401
+
+    if not isinstance(engine_for("url", "MP4", "video"), DownloadEngine):
+        raise RuntimeError("download engine not registered")
+    with yt_dlp.YoutubeDL({**base_options(), "logger": None}) as ydl:
+        if not ydl.get_info_extractor("Youtube") or not ydl.get_info_extractor("Vimeo"):
+            raise RuntimeError("extractors missing")
+    deno = deno_exe()
+    if not deno:
+        raise RuntimeError("deno not found")
+    out = subprocess.run([deno, "--version"], capture_output=True, text=True, timeout=60, creationflags=_NO_WINDOW)
+    if out.returncode != 0 or "deno" not in out.stdout.lower():
+        raise RuntimeError(f"deno --version failed: {out.stderr.strip()[:200]}")
+
+
 def run(report: Path | None) -> int:
     lines, failed = [], 0
     with tempfile.TemporaryDirectory(prefix="recast-selftest-") as tmp:
@@ -74,6 +95,12 @@ def run(report: Path | None) -> int:
                 except Exception as e:
                     failed += 1
                     lines.append(f"FAIL {name} -> {target}: {e!r}")
+            try:
+                _check_download_engine()
+                lines.append("OK   yt-dlp + deno (offline check)")
+            except Exception as e:
+                failed += 1
+                lines.append(f"FAIL yt-dlp + deno (offline check): {e!r}")
             pdf = outputs.get(("notes.md", "PDF"))
             if pdf:  # PDF text proves the bundled fonts were found
                 try:

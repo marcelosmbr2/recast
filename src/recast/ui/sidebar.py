@@ -27,7 +27,7 @@ class Sidebar(QFrame):
         pill.setFixedHeight(22)
         pill_row = hbox(pill, (7, 0, 9, 0), 6)
         pill_row.addWidget(icon_label("shield", theme.GREEN, 13))
-        pill_row.addWidget(text("Offline", "status-strong"))
+        pill_row.addWidget(text("Local", "status-strong"))
         brand.addWidget(pill)
         col.addLayout(brand)
 
@@ -62,7 +62,9 @@ class Sidebar(QFrame):
         title.addWidget(text(f"Processado {platform.DEVICE}", "card-title"))
         title.addStretch(1)
         card_col.addLayout(title)
-        card_col.addWidget(text("O Recast não tem acesso à rede. Seus arquivos nunca são enviados.", "card-body", wrap=True))
+        body = text("Seus arquivos nunca são enviados. A internet é usada só para baixar vídeos de links.", "card-body", wrap=True)
+        body.setFixedWidth(172)  # a fixed width lets the wrapped label get its full height
+        card_col.addWidget(body)
         wrap = hbox(margins=(4, 0, 4, 0))
         wrap.addWidget(card)
         col.addLayout(wrap)

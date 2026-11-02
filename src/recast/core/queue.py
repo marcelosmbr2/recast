@@ -20,6 +20,7 @@ from recast.core.formats import (
 from recast.core.models import Preset, QueueItem, Status
 from recast.core.storage import SettingsStore
 from recast.engines.base import Cancelled, ConversionError, Job, JobContext
+from recast.engines.download import VideoInfo
 from recast.engines.registry import engine_for, is_supported
 
 log = logging.getLogger(__name__)
@@ -63,6 +64,14 @@ def make_item(path: Path) -> QueueItem:
     if choice is None:
         item.status = Status.UNSUPPORTED
     return item
+
+
+def make_url_item(info: VideoInfo, target: str, target_cat: str) -> QueueItem:
+    """A queue item for a YouTube/Vimeo link; `path` only carries the (sanitized) title."""
+    return QueueItem(
+        path=Path(info.filename_stem()), ext="url", cat="video", size=info.filesize, target=target,
+        target_cat=target_cat, url=info.url, title=info.title, duration=info.duration, uploader=info.uploader,
+    )
 
 
 def can_target(item: QueueItem, target: str, target_cat: str) -> bool:
@@ -161,6 +170,15 @@ class ConversionQueue(QObject):
             self.items.extend(added)
             self.items_changed.emit()
         return added
+
+    def add_url(self, info: VideoInfo, target: str, target_cat: str) -> QueueItem | None:
+        """Queue a video link; returns None when the same link is already pending."""
+        if any(i.url == info.url for i in self.items if i.is_pending):
+            return None
+        item = make_url_item(info, target, target_cat)
+        self.items.append(item)
+        self.items_changed.emit()
+        return item
 
     @staticmethod
     def _expand(paths: Iterable[Path]) -> list[Path]:
@@ -297,10 +315,10 @@ class ConversionQueue(QObject):
         staging = Path(tempfile.mkdtemp(prefix="recast-"))
         (staging / "out").mkdir()
         (staging / "work").mkdir()
-        stem, _ = split_name(item.name)
+        stem = item.path.name if item.url else split_name(item.name)[0]  # video titles contain dots
         job = Job(
             src=item.path, src_ext=item.ext, target=item.target, target_cat=item.target_cat,
-            opts=item.opts.merged({}), staging=staging / "out", stem=stem, hw=settings.hw,
+            opts=item.opts.merged({}), staging=staging / "out", stem=stem, hw=settings.hw, url=item.url,
         )
         item_id = item.id
         last = [0.0, -1.0]
@@ -321,7 +339,7 @@ class ConversionQueue(QObject):
                 engine.convert(job, ctx)
                 ctx.check_cancel()
                 out, size, skipped = self._finalize(job, folder, conflict)
-                if not keep and not skipped:
+                if not keep and not skipped and not job.url:
                     QFile.moveToTrash(str(job.src))
                 bridge.finished.emit(item_id, str(out), size, skipped)
             except Cancelled:

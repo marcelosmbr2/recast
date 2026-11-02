@@ -195,3 +195,64 @@ def test_queue_keys_work_when_the_queue_has_focus(window, files, qtbot):
     assert window._selected == items[1].id
     qtbot.keyClick(window.convert_view, Qt.Key.Key_Delete)
     assert [i.name for i in window.queue.items] == ["a.png", "c.jpg"]
+
+
+URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+
+def test_add_link_dialog_validates_and_reports_probe_errors(qtbot):
+    from recast.engines.base import ConversionError
+    from recast.ui.add_link_dialog import AddLinkDialog
+
+    def failing_probe(url):
+        raise ConversionError("Vídeo indisponível")
+
+    QApplication.clipboard().setText("")
+    dialog = AddLinkDialog(probe=failing_probe)
+    qtbot.addWidget(dialog)
+    assert not dialog._add.isEnabled()
+    dialog._url.setText("https://example.com/x")
+    assert not dialog._add.isEnabled() and dialog._status.text().startswith("Link não reconhecido")
+    dialog._url.setText(URL)
+    assert dialog._add.isEnabled() and dialog._status.text() == ""
+    dialog._submit()
+    qtbot.waitUntil(lambda: dialog._status.text() == "Vídeo indisponível", timeout=5000)
+    assert dialog._url.isEnabled() and dialog._add.isEnabled() and dialog.info is None
+    assert dialog.target() == ("MP4", "video")
+
+
+def test_link_items_in_queue_inspector_and_history(window, qtbot, samples, monkeypatch):
+    from recast.engines.base import Engine
+    from recast.engines.download import VideoInfo
+    import recast.core.queue as queue_mod
+
+    class FakeDownload(Engine):
+        def supports(self, *a):
+            return True
+
+        def convert(self, job, ctx):
+            assert job.url == URL and job.stem == "Clip de teste"
+            job.dst.write_bytes(samples["mp4"].read_bytes())
+            ctx.progress(1.0)
+
+    monkeypatch.setattr(queue_mod, "engine_for", lambda *a: FakeDownload())
+    info = VideoInfo(URL, "Clip de teste", 42.0, "Canal", 0)
+    window.queue_link(info, "MP4", "video")
+    assert window.toast._title.text() == "Link adicionado"
+    [item] = window.queue.items
+    row = window.convert_view._rows[item.id]
+    assert row._name.text() == "Clip de teste" and row._meta.text() == "YouTube · 0:42 · Canal"
+    assert window.inspector._name.text() == "Clip de teste"
+    assert window.inspector._meta.text() == "YouTube · 0:42 · Vídeo"
+    assert window.inspector._est.text() == "—"
+    window.queue_link(info, "MP3", "audio")
+    assert window.toast._title.text() == "Esse vídeo já está na fila" and len(window.queue.items) == 1
+
+    with qtbot.waitSignal(window.queue.queue_finished, timeout=20000):
+        window.convert_view._primary.click()
+    assert item.status is Status.DONE and item.out_path.name == "Clip de teste.mp4"
+    [entry] = window.history.entries
+    assert entry.src == "URL" and entry.name == "Clip de teste"
+    window.set_view("history")
+    rows = [window.history_view._list.itemAt(i).widget() for i in range(window.history_view._list.count())]
+    assert sum(isinstance(r, HistoryRow) for r in rows) == 1

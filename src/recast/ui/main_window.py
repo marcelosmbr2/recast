@@ -5,13 +5,15 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QApplication, QFileDialog, QMainWindow, QMessageBox, QStackedWidget, QWidget,
+    QApplication, QDialog, QFileDialog, QMainWindow, QMessageBox, QStackedWidget, QWidget,
 )
 
 from recast.core.models import HistoryEntry, Preset, QueueItem
 from recast.core.queue import ConversionQueue
 from recast.core.storage import HistoryStore, PresetStore, SettingsStore, default_data_dir
+from recast.engines.download import parse_video_url
 from recast.ui import icons, platform
+from recast.ui.add_link_dialog import AddLinkDialog
 from recast.ui.convert_view import ConvertView, plural
 from recast.ui.format_picker import FormatPicker
 from recast.ui.history_view import HistoryView
@@ -24,10 +26,21 @@ from recast.ui.status_bar import StatusBar
 from recast.ui.widgets import hbox, vbox
 
 
+def dropped_link(mime) -> str | None:
+    """A supported video link in dragged data (a browser URL or plain text), if any."""
+    for u in mime.urls() if mime.hasUrls() else []:
+        if not u.isLocalFile() and (link := parse_video_url(u.toString())):
+            return link
+    if mime.hasText():
+        return parse_video_url(mime.text())
+    return None
+
+
 class MainArea(QWidget):
-    """Hosts the views and accepts dropped files anywhere over them."""
+    """Hosts the views and accepts dropped files (or video links) anywhere over them."""
 
     files_dropped = Signal(list)
+    link_dropped = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -37,7 +50,8 @@ class MainArea(QWidget):
         self.overlay = DropOverlay(self)
 
     def dragEnterEvent(self, event) -> None:
-        if event.mimeData().hasUrls() and any(u.isLocalFile() for u in event.mimeData().urls()):
+        mime = event.mimeData()
+        if (mime.hasUrls() and any(u.isLocalFile() for u in mime.urls())) or dropped_link(mime):
             event.acceptProposedAction()
             self.overlay.show_over()
 
@@ -50,6 +64,9 @@ class MainArea(QWidget):
         if paths:
             event.acceptProposedAction()
             self.files_dropped.emit(paths)
+        elif link := dropped_link(event.mimeData()):
+            event.acceptProposedAction()
+            self.link_dropped.emit(link)
 
 
 class MainWindow(QMainWindow):
@@ -102,8 +119,10 @@ class MainWindow(QMainWindow):
         self.sidebar.view_selected.connect(self.set_view)
         self.sidebar.preset_clicked.connect(self.apply_preset)
         self.main.files_dropped.connect(self.add_files)
+        self.main.link_dropped.connect(self.add_link)
         cv = self.convert_view
         cv.browse_requested.connect(self.browse)
+        cv.link_requested.connect(lambda: self.add_link())
         cv.all_picker_requested.connect(lambda anchor: self.open_picker(anchor, None))
         cv.row_selected.connect(self.select)
         cv.pick_requested.connect(lambda item_id, anchor: self.open_picker(anchor, item_id))
@@ -126,6 +145,7 @@ class MainWindow(QMainWindow):
 
     def _shortcuts(self) -> None:
         QShortcut(QKeySequence.StandardKey.Open, self, activated=self.browse)
+        QShortcut(QKeySequence("Ctrl+L"), self, activated=lambda: self.add_link())
         # Queue keys only while focus is in the queue, so the inspector's slider and
         # segmented controls keep their own arrow keys.
         queue_keys = {
@@ -207,6 +227,22 @@ class MainWindow(QMainWindow):
         self.set_view("convert")
         self.select(added[0].id)
         self.toast.show_message(plural(len(added), "arquivo adicionado", "arquivos adicionados"), "Pronto para converter")
+
+    def add_link(self, url: str = "") -> None:
+        """Ask for a YouTube/Vimeo link (pre-filled with `url` when dropped) and queue the video."""
+        dialog = AddLinkDialog(self, url)
+        if dialog.exec() != QDialog.DialogCode.Accepted or dialog.info is None:
+            return
+        self.queue_link(dialog.info, *dialog.target())
+
+    def queue_link(self, info, target: str, target_cat: str) -> None:
+        item = self.queue.add_url(info, target, target_cat)
+        if item is None:
+            self.toast.show_message("Esse vídeo já está na fila", info.title)
+            return
+        self.set_view("convert")
+        self.select(item.id)
+        self.toast.show_message("Link adicionado", f"{info.title} · {target}")
 
     def open_picker(self, anchor: QWidget, item_id: str | None) -> None:
         item = self.queue.get(item_id) if item_id else None

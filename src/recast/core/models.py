@@ -54,6 +54,11 @@ class QueueItem:
     eta: float | None = None
     opts: ConversionOptions = field(default_factory=ConversionOptions)
     id: str = field(default_factory=lambda: f"f{next(_ids)}")
+    # Items added from a link (YouTube/Vimeo): `path` is then just the sanitized title, `ext` is "url".
+    url: str = ""
+    title: str = ""
+    duration: float = 0.0
+    uploader: str = ""
 
     @property
     def name(self) -> str:

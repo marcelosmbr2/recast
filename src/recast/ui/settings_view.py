@@ -63,11 +63,11 @@ class SettingsView(QWidget):
 
         network = hbox(spacing=6)
         network.addWidget(icon_label("lock", theme.GREEN, 13))
-        network.addWidget(text("Desativado", "small-strong"))
+        network.addWidget(text("Só downloads", "small-strong"))
         self._add_row(
             "Acesso à rede",
-            "O Recast nunca se conecta à internet. Os arquivos são processados apenas "
-            f"{platform.DEVICE}.", network, last=True,
+            "Usado apenas para baixar vídeos de links (YouTube, Vimeo). Seus arquivos são processados "
+            f"{platform.DEVICE} e nunca são enviados.", network, last=True,
         )
         store.changed.connect(self.refresh)
         self.refresh()

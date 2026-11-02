@@ -35,6 +35,7 @@ class Job:
     staging: Path  # engines write every output file here
     stem: str
     hw: bool = True
+    url: str = ""  # set for downloads; `src` is then only a placeholder
 
     @property
     def dst(self) -> Path:
@@ -52,6 +53,8 @@ class JobContext:
         self._lock = threading.Lock()
         self._proc: subprocess.Popen | None = None
         self._suspended = False
+        self._resume = threading.Event()  # cleared while paused; in-process engines wait on it
+        self._resume.set()
 
     # Called from the worker thread.
 
@@ -62,6 +65,11 @@ class JobContext:
     def check_cancel(self) -> None:
         if self._cancel.is_set():
             raise Cancelled
+
+    def wait_if_suspended(self) -> None:
+        """Block while the queue is paused (for engines that run in-process, between chunks)."""
+        self._resume.wait()
+        self.check_cancel()
 
     def run(self, args: list[str], on_line: Callable[[str], None] | None = None) -> None:
         """Run a tool, feeding stdout lines to `on_line`; raise ConversionError on failure."""
@@ -101,6 +109,7 @@ class JobContext:
 
     def cancel(self) -> None:
         self._cancel.set()
+        self._resume.set()
         with self._lock:
             if self._proc and self._proc.poll() is None:
                 if self._suspended:
@@ -110,6 +119,10 @@ class JobContext:
     def set_suspended(self, suspended: bool) -> None:
         with self._lock:
             self._suspended = suspended
+            if suspended:
+                self._resume.clear()
+            else:
+                self._resume.set()
             if self._proc and self._proc.poll() is None:
                 self._set_suspended(self._proc, suspended)
 

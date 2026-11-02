@@ -200,3 +200,24 @@ def test_finish_reports_this_runs_saved_and_failed(qtbot, store, images, tmp_pat
     with qtbot.waitSignal(q.queue_finished, timeout=20000) as second:
         q.start()
     assert second.args == [1, 1]  # the file saved in the first run is not counted again
+
+
+def test_add_url_dedupes_and_never_trashes_a_link(qtbot, store, tmp_path, monkeypatch):
+    from PySide6.QtCore import QFile
+
+    from recast.engines.download import VideoInfo
+
+    monkeypatch.setattr(queue_mod, "engine_for", lambda *a: SlowEngine(2))
+    trashed = []
+    monkeypatch.setattr(QFile, "moveToTrash", staticmethod(lambda p: trashed.append(p) or True))
+    store.update(keep=False)
+    q = ConversionQueue(store)
+    info = VideoInfo("https://www.youtube.com/watch?v=dQw4w9WgXcQ", "Mr. Robot: Trailer v2.0", 42.0, "Canal", 1500)
+    item = q.add_url(info, "MP3", "audio")
+    assert item is not None and q.add_url(info, "MP4", "video") is None
+    assert item.ext == "url" and item.cat == "video" and item.url == info.url and item.size == 1500
+    assert item.name.startswith("Mr. Robot") and item.target == "MP3"
+    assert run_to_end(qtbot, q) == 1
+    [out] = (tmp_path / "out").iterdir()
+    assert out.name == "Mr. Robot： Trailer v2.0.mp3"  # the full title is the stem, dots included
+    assert item.status is Status.DONE and trashed == []

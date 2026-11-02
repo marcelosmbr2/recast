@@ -63,7 +63,7 @@ for _cat, _exts in [
     ("image", "jpg jpeg png webp avif heic heif gif tiff tif bmp ico svg dng cr2 nef"),
     ("document", "pdf doc docx odt rtf txt html htm md pptx ppt key xlsx xls csv pages"),
     ("audio", "mp3 wav flac aac ogg m4a opus aiff aif wma"),
-    ("video", "mp4 mov mkv webm avi wmv m4v 3gp"),
+    ("video", "mp4 mov mkv webm avi wmv m4v 3gp url"),  # "url": a YouTube/Vimeo link
     ("archive", "zip 7z rar tar gz tgz bz2"),
     ("ebook", "epub mobi azw3 fb2"),
 ]:

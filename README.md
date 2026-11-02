@@ -1,10 +1,11 @@
 # Recast
 
-Conversor de arquivos para desktop, 100% offline, feito em Python com PySide6 (Qt Widgets). Nada é enviado pela rede: todas as conversões rodam no próprio computador, com motores instalados junto com o app.
+Conversor de arquivos para desktop, feito em Python com PySide6 (Qt Widgets). Todas as conversões rodam no próprio computador, com motores instalados junto com o app; seus arquivos nunca são enviados pela rede. A internet é usada apenas para baixar vídeos do YouTube e do Vimeo a partir de um link.
 
 ## Recursos
 
 - Fila com arrastar e soltar, conversões simultâneas (1, 2 ou 4), pausar/retomar e estimativa de tempo restante.
+- Download de vídeos do YouTube e do Vimeo: "Adicionar link" (Ctrl+L) ou solte o link na janela; o vídeo entra na fila e sai como MP4, MKV, WEBM, MP3, M4A, GIF etc.
 - Inspetor por arquivo: formato de saída, qualidade, codec e resolução (vídeo), taxa de bits e canais (áudio), redimensionamento e remoção de metadados (imagem), nível de compressão (arquivos compactados).
 - Seletor de formatos com busca; "Tudo para…" aplica um formato a todos os arquivos compatíveis.
 - Predefinições (embutidas e criadas pelo usuário), histórico local e ajustes (pasta de saída, conflito de nomes, manter originais).
@@ -19,8 +20,9 @@ Conversor de arquivos para desktop, 100% offline, feito em Python com PySide6 (Q
 | Documentos | DOCX, ODT, RTF, TXT, HTML, MD, PPTX, XLSX, CSV, PDF | PDF, DOCX, ODT, RTF, TXT, HTML, MD, EPUB, FB2, imagens | pandoc, Qt, pdfium |
 | Compactados | ZIP, 7Z, TAR, TAR.GZ, GZ, BZ2 | ZIP, 7Z, TAR.GZ, TAR | zipfile, tarfile, py7zr |
 | E-books | EPUB, FB2 | EPUB, FB2, documentos | pandoc |
+| Links | Vídeo do YouTube ou Vimeo (um por link) | Os mesmos de Vídeo | yt-dlp + Deno, FFmpeg |
 
-Ainda não suportados: RAR, MOBI/AZW3, formatos antigos do Office (DOC, PPT, XLS), RAW de câmera e OCR. No seletor, eles aparecem como "Indisponível". De PDF para documentos editáveis, só o texto é convertido.
+Ainda não suportados: RAR, MOBI/AZW3, formatos antigos do Office (DOC, PPT, XLS), RAW de câmera e OCR. No seletor, eles aparecem como "Indisponível". De PDF para documentos editáveis, só o texto é convertido. Links de playlist, canais, transmissões ao vivo e vídeos privados ou com DRM não são baixados.
 
 ## Instalar (Windows)
 
@@ -68,14 +70,14 @@ Gera `dist/Recast/` (app empacotado com PyInstaller), roda o autoteste do app em
 
 ## Licença
 
-MIT (veja [LICENSE](LICENSE)). O instalador inclui FFmpeg, pandoc, Qt e outros componentes sob as próprias licenças; veja [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+MIT (veja [LICENSE](LICENSE)). O instalador inclui FFmpeg, pandoc, yt-dlp, Deno, Qt e outros componentes sob as próprias licenças; veja [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## Estrutura
 
 ```
 src/recast/
   core/       # formatos, fila de conversão, modelos e persistência (sem widgets)
-  engines/    # motores de conversão (imagem, mídia, compactados, documentos)
+  engines/    # motores de conversão (imagem, mídia, compactados, documentos, download de links)
   ui/         # janela, telas, inspetor, seletor de formatos, tema e ícones
   resources/  # fontes Inter e JetBrains Mono (SIL OFL)
 packaging/    # PyInstaller, Inno Setup e script de build do instalador
