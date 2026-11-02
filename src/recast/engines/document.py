@@ -6,24 +6,23 @@ import functools
 import html
 import json
 import sys
-import threading
 from pathlib import Path
 
 import pypandoc
-import pypdfium2 as pdfium
 from PySide6.QtCore import QMarginsF, QUrl
 from PySide6.QtGui import QFont, QPageLayout, QPageSize, QPdfWriter, QTextDocument
 
 from recast.engines.base import ConversionError, Engine, Job, JobContext
 from recast.engines.image import MULTI_FRAME, can_write, prepare_frame, save_image
+from recast.engines.pdf_import import PDFIUM_LOCK, blocks_to_html, blocks_to_text, open_pdf, pdf_to_blocks
 
 PANDOC_IN = {
     "docx": "docx", "odt": "odt", "rtf": "rtf", "html": "html", "htm": "html", "md": "markdown",
     "pptx": "pptx", "xlsx": "xlsx", "csv": "csv", "epub": "epub", "fb2": "fb2",
 }
-TEXT_IN = {"txt", "pdf"}  # read as plain text, then fed to pandoc as HTML paragraphs
-# pdfium is not thread-safe; serialize every call into it.
-_PDFIUM_LOCK = threading.Lock()
+# Not read by pandoc: TXT becomes HTML paragraphs, PDF goes through pdf_import (text, headings,
+# lists and images reconstructed from pdfium's character and image data).
+TEXT_IN = {"txt", "pdf"}
 
 PANDOC_OUT = {
     "DOCX": "docx", "ODT": "odt", "RTF": "rtf", "HTML": "html", "MD": "gfm", "TXT": "plain",
@@ -49,22 +48,9 @@ def _read_text(path: Path) -> str:
     return raw.decode("utf-8", errors="replace")
 
 
-def _pdf_text(path: Path, ctx: JobContext) -> str:
-    pages = []
-    with _PDFIUM_LOCK:
-        pdf = _open_pdf(path)
-        for i, page in enumerate(pdf):
-            pages.append(page.get_textpage().get_text_range())
-            ctx.progress(0.4 * (i + 1) / len(pdf))
-        pdf.close()
-    return "\n\n".join(pages)
-
-
-def _open_pdf(path: Path) -> pdfium.PdfDocument:
-    try:
-        return pdfium.PdfDocument(str(path))
-    except pdfium.PdfiumError as e:
-        raise ConversionError(f"PDF inválido: {e}") from e
+def _pdf_html(job: Job, ctx: JobContext) -> str:
+    """Semantic HTML for a PDF source; extracted images land in ctx.tmp/media."""
+    return blocks_to_html(pdf_to_blocks(job.src, ctx, ctx.tmp / "media"))
 
 
 def _text_to_html(text: str) -> str:
@@ -92,7 +78,7 @@ class DocumentEngine(Engine):
         elif job.target == "PDF":
             self._to_pdf(job, ctx, job.dst)
         elif job.src_ext == "pdf" and job.target == "TXT":
-            job.dst.write_text(_pdf_text(job.src, ctx), encoding="utf-8")
+            job.dst.write_text(blocks_to_text(pdf_to_blocks(job.src, ctx, None)), encoding="utf-8")
         else:
             src, fmt = self._pandoc_input(job, ctx)
             self._pandoc(src, fmt, PANDOC_OUT[job.target], job.dst, job, ctx)
@@ -101,13 +87,14 @@ class DocumentEngine(Engine):
     def _pandoc_input(self, job: Job, ctx: JobContext) -> tuple[Path, str]:
         if job.src_ext in PANDOC_IN:
             return job.src, PANDOC_IN[job.src_ext]
-        text = _pdf_text(job.src, ctx) if job.src_ext == "pdf" else _read_text(job.src)
+        page_html = _pdf_html(job, ctx) if job.src_ext == "pdf" else _text_to_html(_read_text(job.src))
         tmp = ctx.tmp / "input.html"
-        tmp.write_text(_text_to_html(text), encoding="utf-8")
+        tmp.write_text(page_html, encoding="utf-8")
         return tmp, "html"
 
     def _pandoc(self, src: Path, fmt: str, to: str, dst: Path, job: Job, ctx: JobContext) -> None:
-        args = [pandoc_exe(), str(src), "-f", fmt, "-t", to, "-o", str(dst)]
+        # Relative image paths (extracted PDF images, Markdown/HTML sources) resolve next to the input.
+        args = [pandoc_exe(), str(src), "-f", fmt, "-t", to, "-o", str(dst), "--resource-path", str(src.parent)]
         if to in ("html", "rtf"):
             args.append("--standalone")
         if to == "html":
@@ -124,15 +111,17 @@ class DocumentEngine(Engine):
     def _to_pdf(self, job: Job, ctx: JobContext, dst: Path) -> Path:
         """Render the document through pandoc → HTML → QTextDocument → QPdfWriter."""
         media = ctx.tmp / "media"
-        if job.src_ext in TEXT_IN:
-            text = _pdf_text(job.src, ctx) if job.src_ext == "pdf" else _read_text(job.src)
-            page_html = _text_to_html(text)
+        if job.src_ext == "pdf":
+            page_html = _pdf_html(job, ctx)
+        elif job.src_ext == "txt":
+            page_html = _text_to_html(_read_text(job.src))
         else:
             out = ctx.tmp / "page.html"
             ctx.progress(0.2)
             ctx.run([
                 pandoc_exe(), str(job.src), "-f", PANDOC_IN[job.src_ext], "-t", "html", "--standalone",
-                "--extract-media", str(media), "--metadata", f"pagetitle={job.stem}", "-o", str(out),
+                "--resource-path", str(job.src.parent), "--extract-media", str(media),
+                "--metadata", f"pagetitle={job.stem}", "-o", str(out),
             ])
             page_html = out.read_text(encoding="utf-8")
         ctx.progress(0.6)
@@ -155,21 +144,28 @@ class DocumentEngine(Engine):
 
     def _render_pages(self, pdf_path: Path, job: Job, ctx: JobContext) -> None:
         scale = 150 / 72 if job.opts.compress else 200 / 72
-        frames = []
-        with _PDFIUM_LOCK:
-            pdf = _open_pdf(pdf_path)
-            count = len(pdf)
-            for i, page in enumerate(pdf):
-                img = page.render(scale=scale).to_pil()
-                frames.append(prepare_frame(img, job.target, job.opts))
-                ctx.progress(0.6 + 0.35 * (i + 1) / count)
-            pdf.close()
-        if count == 0:
-            raise ConversionError("PDF sem páginas")
-        if job.target in MULTI_FRAME or count == 1:
+        frames = []  # kept only for multi-frame targets; single images are saved page by page
+        with PDFIUM_LOCK:
+            pdf = open_pdf(pdf_path)
+            try:
+                count = len(pdf)
+                if count == 0:
+                    raise ConversionError("PDF sem páginas")
+                multi = job.target in MULTI_FRAME or count == 1
+                width = len(str(count))
+                for i in range(count):
+                    page = pdf[i]
+                    try:
+                        frame = prepare_frame(page.render(scale=scale).to_pil(), job.target, job.opts)
+                    finally:
+                        page.close()
+                    if multi:
+                        frames.append(frame)
+                    else:
+                        dst = job.staging / f"{job.stem}-{i + 1:0{width}d}.{job.target.lower()}"
+                        save_image([frame], dst, job.target, job.opts)
+                    ctx.progress(0.6 + 0.35 * (i + 1) / count)
+            finally:
+                pdf.close()
+        if multi:
             save_image(frames, job.dst, job.target, job.opts, durations=[1000] * count)
-            return
-        width = len(str(count))
-        for i, frame in enumerate(frames, 1):
-            dst = job.staging / f"{job.stem}-{i:0{width}d}.{job.target.lower()}"
-            save_image([frame], dst, job.target, job.opts)

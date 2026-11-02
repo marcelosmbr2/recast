@@ -34,7 +34,7 @@ Three layers under `src/recast/`; dependencies point downward only (`ui` → `co
   - `storage.py`: settings, history and user presets as JSON in `QStandardPaths.AppDataLocation`. `MainWindow(data_dir)` takes an override, which tests use.
 - **`engines/`**: `Engine.supports(src_ext, target, target_cat)` + `convert(job, ctx)`.
   - `registry.engine_for()` picks the first engine that supports a pair. The format picker, `default_target()` and the queue all use it, so a pair with no engine is shown as "Indisponível".
-  - Engines: `image` (Pillow + pillow-heif; SVG via QtSvg), `media` (FFmpeg from imageio-ffmpeg; progress from `-progress pipe:1`), `archive` (zipfile/tarfile/py7zr), `document` (pypandoc-binary; PDF *output* via pandoc → HTML → `QTextDocument` → `QPdfWriter`; PDF *input* via pypdfium2, serialized by `_PDFIUM_LOCK` because pdfium isn't thread-safe).
+  - Engines: `image` (Pillow + pillow-heif; SVG via QtSvg), `media` (FFmpeg from imageio-ffmpeg; progress from `-progress pipe:1`), `archive` (zipfile/tarfile/py7zr), `document` (pypandoc-binary; PDF *output* via pandoc → HTML → `QTextDocument` → `QPdfWriter`; PDF *input* via `pdf_import.py`, which rebuilds paragraphs, headings, lists and images from pypdfium2 character boxes and image objects, then feeds HTML to pandoc; every pdfium call is serialized by `pdf_import.PDFIUM_LOCK` because pdfium isn't thread-safe).
   - Engines must call `ctx.progress()` (it also checks cancellation) and run external tools through `ctx.run()` so cancel/pause work. Raise `ConversionError` with a pt-BR message for user-facing failures.
   - Not supported, by design: RAR input, MOBI/AZW3, legacy Office (doc/ppt/xls/key/pages), camera RAW, OCR.
 - **`ui/`**: `main_window.py` wires the views to the queue and stores.

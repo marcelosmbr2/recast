@@ -14,7 +14,7 @@ BUILTIN_PRESETS: list[Preset] = [
     Preset("p6", "Word para PDF", ["docx"], "PDF", "document", 80,
            "Documento portátil · Imagens comprimidas", {"compress": True}, builtin=True),
     Preset("p7", "PDF para Word", ["pdf"], "DOCX", "document", 80,
-           "Somente o texto · Microsoft Word", builtin=True),
+           "Texto, títulos, listas e imagens · Microsoft Word", builtin=True),
     Preset("p8", "OGG para MP3", ["ogg"], "MP3", "audio", 80,
            "192 kbps · Estéreo", {"bitrate": "192 kbps", "channels": "Estéreo"}, builtin=True),
 ]

@@ -28,8 +28,10 @@ def convert(src: Path, target: str, target_cat: str, tmp_path: Path, **opts) -> 
     job = Job(src, ext, target, target_cat, ConversionOptions().merged(opts), staging, stem)
     engine.convert(job, JobContext(progress.append, work))
     assert progress and progress[-1] == 1.0
-    assert job.dst.exists() and job.dst.stat().st_size > 0
-    return sorted(staging.iterdir())
+    outputs = sorted(staging.iterdir())
+    assert outputs and all(out.stat().st_size > 0 for out in outputs)
+    assert job.dst.exists() or len(outputs) > 1  # multi-page image output is numbered instead
+    return outputs
 
 
 @pytest.mark.parametrize("target", ["JPG", "WEBP", "AVIF", "HEIC", "BMP", "ICO", "TIFF", "GIF"])

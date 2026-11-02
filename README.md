@@ -20,7 +20,7 @@ Conversor de arquivos para desktop, 100% offline, feito em Python com PySide6 (Q
 | Compactados | ZIP, 7Z, TAR, TAR.GZ, GZ, BZ2 | ZIP, 7Z, TAR.GZ, TAR | zipfile, tarfile, py7zr |
 | E-books | EPUB, FB2 | EPUB, FB2, documentos | pandoc |
 
-Ainda não suportados: RAR, MOBI/AZW3, formatos antigos do Office (DOC, PPT, XLS), RAW de câmera e OCR. No seletor, eles aparecem como "Indisponível". De PDF para documentos editáveis, só o texto é convertido.
+Ainda não suportados: RAR, MOBI/AZW3, formatos antigos do Office (DOC, PPT, XLS), RAW de câmera e OCR. No seletor, eles aparecem como "Indisponível". De PDF para documentos editáveis, o app reconstrói parágrafos, títulos, listas, negrito e imagens a partir do texto selecionável; tabelas, colunas e quebras de página não são preservadas, e PDFs digitalizados (sem texto) não são convertidos.
 
 ## Instalar (Windows)
 
