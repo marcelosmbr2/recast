@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QFrame, QWidget
+from PySide6.QtWidgets import QFrame, QLabel, QWidget
 
 from recast.core.models import Preset
 from recast.ui import platform, theme
 from recast.ui.widgets import Button, CompositeButton, frame, hbox, icon_label, set_prop, text, vbox
 
-VIEWS = ("convert", "history", "presets", "settings")
+VIEWS = ("convert", "download", "history", "presets", "settings")
 
 
 class Sidebar(QFrame):
@@ -34,16 +34,19 @@ class Sidebar(QFrame):
         self._nav: dict[str, Button] = {}
         nav = vbox(spacing=2)
         for view, label, icon in [
-            ("convert", "Converter", "convert"), ("history", "Histórico", "history"),
-            ("presets", "Predefinições", "presets"),
+            ("convert", "Converter", "convert"), ("download", "Baixar vídeos", "download"),
+            ("history", "Histórico", "history"), ("presets", "Predefinições", "presets"),
         ]:
             nav.addWidget(self._nav_button(view, label, icon))
         col.addLayout(nav)
-        self._count = text("", "mono-dim")
-        self._count.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        count_row = hbox(self._nav["convert"], (0, 0, 10, 0))
-        count_row.addStretch(1)
-        count_row.addWidget(self._count)
+        self._counts: dict[str, QLabel] = {}
+        for view in ("convert", "download"):
+            count = text("", "mono-dim")
+            count.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            count_row = hbox(self._nav[view], (0, 0, 10, 0))
+            count_row.addStretch(1)
+            count_row.addWidget(count)
+            self._counts[view] = count
 
         col.addSpacing(22)
         heading = text("Predefinições rápidas", "section")
@@ -82,8 +85,8 @@ class Sidebar(QFrame):
             set_prop(b, "active", active)
             b.set_icon(b._icon_name, theme.TEXT if active else theme.TEXT_3, theme.TEXT)
 
-    def set_pending(self, count: int) -> None:
-        self._count.setText(str(count) if count else "")
+    def set_pending(self, view: str, count: int) -> None:
+        self._counts[view].setText(str(count) if count else "")
 
     def set_presets(self, presets: list[Preset]) -> None:
         while self._quick.count():

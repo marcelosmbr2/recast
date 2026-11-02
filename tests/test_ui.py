@@ -52,7 +52,7 @@ def test_empty_state_then_rows(window, files):
     assert window.inspector.isVisible()
     assert window.inspector._name.text() == "a.png"
     assert window.toast._title.text() == "3 arquivos adicionados"
-    assert window.sidebar._count.text() == "3"
+    assert window.sidebar._counts["convert"].text() == "3"
 
 
 def test_click_row_selects_and_keyboard_navigation(window, files, qtbot):
@@ -190,38 +190,41 @@ def test_failed_conversion_is_reported_in_toast(window, files, qtbot, tmp_path):
 def test_queue_keys_work_when_the_queue_has_focus(window, files, qtbot):
     window.add_files(files)
     items = list(window.queue.items)
-    window.convert_view.setFocus()
-    qtbot.keyClick(window.convert_view, Qt.Key.Key_Down)
+    pages = window.convert_view._pages
+    pages.setFocus()
+    qtbot.keyClick(pages, Qt.Key.Key_Down)
     assert window._selected == items[1].id
-    qtbot.keyClick(window.convert_view, Qt.Key.Key_Delete)
+    qtbot.keyClick(pages, Qt.Key.Key_Delete)
     assert [i.name for i in window.queue.items] == ["a.png", "c.jpg"]
 
 
 URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
 
 
-def test_add_link_dialog_validates_and_reports_probe_errors(qtbot):
+def test_link_form_validates_and_reports_probe_errors(window, qtbot):
     from recast.engines.base import ConversionError
-    from recast.ui.add_link_dialog import AddLinkDialog
+    from recast.ui.download_view import HINT
 
     def failing_probe(url):
         raise ConversionError("Vídeo indisponível")
 
+    view = window.download_view
+    view._probe = failing_probe
     QApplication.clipboard().setText("")
-    dialog = AddLinkDialog(probe=failing_probe)
-    qtbot.addWidget(dialog)
-    assert not dialog._add.isEnabled()
-    dialog._url.setText("https://example.com/x")
-    assert not dialog._add.isEnabled() and dialog._status.text().startswith("Link não reconhecido")
-    dialog._url.setText(URL)
-    assert dialog._add.isEnabled() and dialog._status.text() == ""
-    dialog._submit()
-    qtbot.waitUntil(lambda: dialog._status.text() == "Vídeo indisponível", timeout=5000)
-    assert dialog._url.isEnabled() and dialog._add.isEnabled() and dialog.info is None
-    assert dialog.target() == ("MP4", "video")
+    window.sidebar._nav["download"].click()
+    assert window.main.stack.currentWidget() is view and not window.inspector.isVisible()
+    assert not view._add.isEnabled() and view._pages.currentIndex() == 0
+    view._url.setText("https://example.com/x")
+    assert not view._add.isEnabled() and view._status.text().startswith("Link não reconhecido")
+    view._url.setText(URL)
+    assert view._add.isEnabled() and view._status.text() == HINT
+    view._add.click()
+    qtbot.waitUntil(lambda: view._status.text() == "Vídeo indisponível", timeout=5000)
+    assert view._url.isEnabled() and view._add.isEnabled() and window.downloads.items == []
+    assert view.target() == ("MP4", "video")
 
 
-def test_link_items_in_queue_inspector_and_history(window, qtbot, samples, monkeypatch):
+def test_dropped_link_downloads_on_its_own_page(window, files, qtbot, samples, monkeypatch):
     from recast.engines.base import Engine
     from recast.engines.download import VideoInfo
     import recast.core.queue as queue_mod
@@ -235,24 +238,28 @@ def test_link_items_in_queue_inspector_and_history(window, qtbot, samples, monke
             job.dst.write_bytes(samples["mp4"].read_bytes())
             ctx.progress(1.0)
 
+    window.add_files(files)  # pending conversions must not start along with the download
     monkeypatch.setattr(queue_mod, "engine_for", lambda *a: FakeDownload())
     info = VideoInfo(URL, "Clip de teste", 42.0, "Canal", 0)
-    window.queue_link(info, "MP4", "video")
-    assert window.toast._title.text() == "Link adicionado"
-    [item] = window.queue.items
-    row = window.convert_view._rows[item.id]
-    assert row._name.text() == "Clip de teste" and row._meta.text() == "YouTube · 0:42 · Canal"
-    assert window.inspector._name.text() == "Clip de teste"
-    assert window.inspector._meta.text() == "YouTube · 0:42 · Vídeo"
-    assert window.inspector._est.text() == "—"
-    window.queue_link(info, "MP3", "audio")
-    assert window.toast._title.text() == "Esse vídeo já está na fila" and len(window.queue.items) == 1
-
-    with qtbot.waitSignal(window.queue.queue_finished, timeout=20000):
-        window.convert_view._primary.click()
+    view = window.download_view
+    view._probe = lambda url: info
+    with qtbot.waitSignal(window.downloads.queue_finished, timeout=20000):
+        window.add_link(URL)  # as if dropped: looked up and started right away
+    assert window.main.stack.currentWidget() is view and view._url.text() == ""
+    [item] = window.downloads.items
     assert item.status is Status.DONE and item.out_path.name == "Clip de teste.mp4"
+    assert window.toast._title.text() == "Todos os downloads concluídos"
+    assert all(i.status is Status.READY for i in window.queue.items) and not window.queue.running
+    assert item.id not in window.convert_view._rows
+    row = view._rows[item.id]
+    assert row._name.text() == "Clip de teste" and row._meta.text() == "YouTube · 0:42 · Canal"
+    assert window.inspector.isVisible() and window.inspector._name.text() == "Clip de teste"
+    assert window.inspector._meta.text() == "YouTube · 0:42 · Vídeo"
+    assert view._clear.isVisible() and not view._primary.isVisible()
     [entry] = window.history.entries
     assert entry.src == "URL" and entry.name == "Clip de teste"
-    window.set_view("history")
-    rows = [window.history_view._list.itemAt(i).widget() for i in range(window.history_view._list.count())]
-    assert sum(isinstance(r, HistoryRow) for r in rows) == 1
+
+    window.set_view("convert")  # each page keeps its own selection
+    assert window.inspector._name.text() == "a.png"
+    view._clear.click()
+    assert window.downloads.items == [] and view._pages.currentIndex() == 0 and len(window.queue.items) == 3

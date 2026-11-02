@@ -9,9 +9,9 @@ from recast.ui.widgets import Dot, hbox, icon_label, text
 
 
 class StatusBar(QFrame):
-    def __init__(self, queue: ConversionQueue, parent: QWidget | None = None) -> None:
+    def __init__(self, conversions: ConversionQueue, downloads: ConversionQueue, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._queue = queue
+        self._queues = ((conversions, "Convertendo"), (downloads, "Baixando"))
         self.setProperty("role", "statusbar")
         self.setFixedHeight(26)
         row = hbox(self, (12, 0, 12, 0), 18)
@@ -28,20 +28,20 @@ class StatusBar(QFrame):
         sent.addWidget(icon_label("lock-bold", theme.DIM, 11))
         sent.addWidget(text("0 bytes enviados", "status"))
         row.addLayout(sent)
-        for signal in (queue.items_changed, queue.item_changed, queue.running_changed):
-            signal.connect(self.refresh)
+        for queue, _verb in self._queues:
+            for signal in (queue.items_changed, queue.item_changed, queue.running_changed):
+                signal.connect(self.refresh)
 
     def set_settings(self, settings: Settings) -> None:
         accel = "Aceleração de hardware ativa" if settings.hw else "Somente CPU"
         self._threads.setText(f"{settings.parallel} simultâneas · {accel}")
 
     def refresh(self, *_args) -> None:
-        q = self._queue
-        active, pending = q.active, q.pending
-        if q.running:
+        running = [f"{verb} {len(q.active)} de {len(q.pending)}" for q, verb in self._queues if q.running]
+        if running:
             self._dot.set_color(theme.ACCENT)
-            self._label.setText(f"Convertendo {len(active)} de {len(pending)}")
-        elif active:
+            self._label.setText(" · ".join(running))
+        elif any(q.active for q, _verb in self._queues):
             self._dot.set_color(theme.MUTED)
             self._label.setText("Pausado")
         else:
