@@ -1,6 +1,6 @@
 [project]
 name = "recast"
-version = "0.1.0"
+version = "0.2.0"
 description = "Recast: conversor de arquivos para desktop com PySide6 (Qt Widgets), com download de vídeos por link."
 readme = "README.md"
 requires-python = ">=3.11"
